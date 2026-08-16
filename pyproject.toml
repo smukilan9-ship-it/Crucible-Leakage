@@ -7,7 +7,6 @@ name = "crucible-leakage"
 version = "0.1.0"
 description = "Find tabular columns that encode the outcome they are used to predict"
 readme = "README.md"
-license = { file = "LICENSE" }
 requires-python = ">=3.11"
 authors = [{ name = "Mukilan" }]
 keywords = ["data-leakage", "target-leakage", "tabular", "data-quality",
@@ -15,7 +14,6 @@ keywords = ["data-leakage", "target-leakage", "tabular", "data-quality",
 classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
-  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",

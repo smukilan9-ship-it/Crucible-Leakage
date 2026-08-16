@@ -98,7 +98,3 @@ export CRUCIBLE_GEMINI_KEYS=your-key
 
 `crucible models` lists every model, what it costs you, and whether its key is
 set.
-
----
-
-Apache 2.0. Citation metadata in `CITATION.cff`.
