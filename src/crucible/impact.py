@@ -21,6 +21,7 @@ the full ROC curve, per-fold AUC spread, and the best F1 over all thresholds,
 computed by the identical procedure for every arm.
 """
 
+import os
 import re
 
 import numpy as np
@@ -32,7 +33,11 @@ from . import metrics
 
 IDENTIFIER_NAME_TOKENS = {"id", "ids", "nbr", "key", "uuid", "guid"}
 MIN_DISTINCT_UNITS = 20
-MAX_ROWS = 5000
+# A shared-CPU host fits far more slowly than a laptop, and the comparison is
+# ninety fits. Lowering this trades a little precision for a demonstration that
+# finishes: the sample is stratified by the fold builder either way, and the
+# report says how many rows were used.
+MAX_ROWS = int(os.environ.get("CRUCIBLE_MAX_ROWS", "5000"))
 
 SEARCH_GRIDS = {
     "random_forest": [

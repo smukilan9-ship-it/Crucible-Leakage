@@ -496,12 +496,46 @@ async def review(job_id: str, verdicts: dict[str, str]):
     return {"review": job["review"]}
 
 
+# ── the measurement, which outlives the request that starts it ───────────
+#
+# Fitting ninety models takes minutes, and a hosted deployment sits behind a
+# proxy that will not hold a request open that long: it gives up and answers
+# with its own 502 page, which the browser then tries to read as JSON. So the
+# request that starts a measurement returns immediately, and the answer is
+# collected separately. The run itself is unchanged.
+
+async def _measure(job: dict, table, drop_list: list, baseline_drops: list,
+                   reporter) -> None:
+    """Run the comparison and park the outcome on the job."""
+    try:
+        result = await asyncio.to_thread(
+            impact.quantify, table, job["target"], drop_list,
+            baseline_drop_list=baseline_drops or None, on_event=reporter)
+    except Exception as error:      # noqa: BLE001 - reported, never a bare 500
+        # A learner refusing the data is a fact about the data, not a crash.
+        # Left unhandled it would reach the browser as a stack page and be
+        # parsed as JSON, producing a message about strings that has nothing to
+        # do with the cause.
+        if reporter:
+            reporter("failed", {"message": str(error)})
+        job["impact_error"] = str(error)
+        job["status"] = "failed"
+        return
+    job["impact"] = {"drop_list": drop_list, **result}
+    job["impact_error"] = None
+    job["status"] = "complete"
+
+
 @app.post("/api/audit/{job_id}/impact")
 async def run_impact(job_id: str, run_id: str = ""):
+    """Start the comparison. Returns at once; poll the result endpoint."""
     job = _job(job_id)
     drop_list = [column for column, decision in job["review"].items() if decision == "drop"]
     if not drop_list:
         raise HTTPException(422, "confirm at least one column as 'drop' before measuring impact")
+    if job.get("status") == "measuring":
+        return {"started": True, "already_running": True}
+
     table = intake.load_table(job["path"])
     # N-81. The third arm is what the correlation screen would have removed on
     # this table, so the comparison answers "did the semantic screen beat the
@@ -510,24 +544,25 @@ async def run_impact(job_id: str, run_id: str = ""):
     baseline_drops = sorted(
         column for column, entry in (job["statistical"] or {}).items()
         if entry.get("flagged"))
-    reporter = _fit_reporter(run_id)
-    try:
-        result = await asyncio.to_thread(
-            impact.quantify, table, job["target"], drop_list,
-            baseline_drop_list=baseline_drops or None, on_event=reporter)
-    except Exception as error:      # noqa: BLE001 - reported, never a bare 500
-        # A learner refusing the data is a 422 about the data, not a 500 about
-        # the server. Left unhandled it answers with a plain-text stack page,
-        # and a browser parsing that as JSON reports a message about strings
-        # that has nothing to do with the cause.
-        if reporter:
-            reporter("failed", {"message": str(error)})
-        if isinstance(error, impact.ImpactError):
-            raise HTTPException(422, str(error))
-        raise HTTPException(422, f"the comparison could not be computed: {error}")
-    job["impact"] = {"drop_list": drop_list, **result}
-    job["status"] = "complete"
-    return job["impact"]
+    job["impact"] = None
+    job["impact_error"] = None
+    job["status"] = "measuring"
+    asyncio.create_task(
+        _measure(job, table, drop_list, baseline_drops, _fit_reporter(run_id)))
+    return {"started": True}
+
+
+@app.get("/api/audit/{job_id}/impact")
+async def impact_result(job_id: str):
+    """The comparison, once it exists. 202 while it is still running."""
+    job = _job(job_id)
+    if job.get("impact_error"):
+        raise HTTPException(422, job["impact_error"])
+    if job.get("impact"):
+        return job["impact"]
+    if job.get("status") == "measuring":
+        return JSONResponse({"status": "measuring"}, status_code=202)
+    raise HTTPException(409, "no comparison has been started for this job")
 
 
 # ── watching the fit happen ──────────────────────────────────────────────
@@ -594,9 +629,13 @@ async def fit_events(run_id: str):
 DEMO_TABLE = os.path.join(os.path.dirname(__file__), "static", "titanic.csv")
 
 
+DEMO_RUNS: dict[str, dict] = {}
+
+
 @app.post("/api/demo/impact")
 async def demo_impact(request: dict):
-    """Measure the demo dataset against an arbitrary drop list.
+    """Start the demo measurement. Same shape as the real one, and for the same
+    reason: it takes longer than a proxy will hold a request open.
 
     The demo runs without an API key, so its detection stage is canned. The
     measurement is not: this fits the real learners on the real table, which is
@@ -606,19 +645,31 @@ async def demo_impact(request: dict):
     drop_list = [str(column) for column in request.get("drop_list", [])]
     if not drop_list:
         raise HTTPException(422, "select at least one column to drop")
+    run_id = str(request.get("run_id") or uuid.uuid4().hex)
     table = intake.load_table(os.path.abspath(DEMO_TABLE))
     screened = stats.statistical_screen(table, "survived")
     baseline_drops = sorted(c for c, e in screened.items() if e.get("flagged"))
-    reporter = _fit_reporter(str(request.get("run_id") or ""))
-    try:
-        result = await asyncio.to_thread(
-            impact.quantify, table, "survived", drop_list,
-            baseline_drop_list=baseline_drops or None, on_event=reporter)
-    except impact.ImpactError as error:
-        if reporter:
-            reporter("failed", {"message": str(error)})
-        raise HTTPException(422, str(error))
-    return {"drop_list": drop_list, **result}
+    reporter = _fit_reporter(run_id)
+
+    slot = {"target": "survived", "review": {}, "impact": None,
+            "impact_error": None, "status": "measuring"}
+    while len(DEMO_RUNS) > 8:
+        DEMO_RUNS.pop(next(iter(DEMO_RUNS)))
+    DEMO_RUNS[run_id] = slot
+    asyncio.create_task(_measure(slot, table, drop_list, baseline_drops, reporter))
+    return {"started": True, "run_id": run_id}
+
+
+@app.get("/api/demo/impact/{run_id}")
+async def demo_impact_result(run_id: str):
+    slot = DEMO_RUNS.get(run_id)
+    if not slot:
+        raise HTTPException(404, "no demo comparison with that identifier")
+    if slot.get("impact_error"):
+        raise HTTPException(422, slot["impact_error"])
+    if slot.get("impact"):
+        return slot["impact"]
+    return JSONResponse({"status": "measuring"}, status_code=202)
 
 
 @app.get("/api/audit/{job_id}/report")

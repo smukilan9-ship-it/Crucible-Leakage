@@ -40,3 +40,11 @@ services:
       # test holds it to that.
       - key: CRUCIBLE_SHUFFLES
         value: "3"
+
+      # How many rows the downstream comparison fits. The free plan runs on a
+      # shared CPU, and this stage is ninety fits: at the 5,000 row default a
+      # wide table can take twenty minutes there. Two thousand keeps the
+      # comparison honest and lets a visitor see it finish. The report always
+      # says how many rows were used.
+      - key: CRUCIBLE_MAX_ROWS
+        value: "2000"

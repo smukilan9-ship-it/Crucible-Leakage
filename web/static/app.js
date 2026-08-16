@@ -1180,15 +1180,21 @@ async function runImpact({ keepEditor = false } = {}) {
   await fit.ready;
 
   const drops = currentDrops();
-  let response, result;
+  let result;
   try {
+    // Starting the measurement and collecting it are two requests on purpose.
+    // Fitting ninety models takes minutes, and a hosted deployment sits behind
+    // a proxy that gives up on a request long before that and answers with its
+    // own 502 page. So the post returns at once and the answer is polled for.
+    let poll;
     if (app.demo) {
-      response = await fetch("api/demo/impact", {
+      const started = await readResult(await fetch("api/demo/impact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ drop_list: drops, run_id: runId }),
         signal: fitAbort.signal,
-      });
+      }));
+      poll = `api/demo/impact/${encodeURIComponent(started.run_id || runId)}`;
     } else {
       const verdicts = Object.fromEntries(
         Object.entries(app.decisions).filter(([, decision]) => decision));
@@ -1197,11 +1203,12 @@ async function runImpact({ keepEditor = false } = {}) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(verdicts),
       });
-      response = await fetch(
+      await readResult(await fetch(
         `api/audit/${app.jobId}/impact?run_id=${encodeURIComponent(runId)}`,
-        { method: "POST", signal: fitAbort.signal });
+        { method: "POST", signal: fitAbort.signal }));
+      poll = `api/audit/${app.jobId}/impact`;
     }
-    result = await readResult(response);
+    result = await collectImpact(poll, fitAbort.signal);
   } catch (error) {
     fit.close();
     // Stopping is a choice, not a failure, and must not be reported as one.
@@ -1209,7 +1216,6 @@ async function runImpact({ keepEditor = false } = {}) {
     return failImpact(error.message, error);
   }
   fit.close();
-  if (!response.ok) return failImpact(result.detail || "the comparison failed");
   // Rendering can throw too, and when it does the failure looks identical to a
   // failed request from the outside. Catching it here is what tells the two
   // apart instead of leaving a half-drawn page and an unhandled rejection.
@@ -1653,6 +1659,32 @@ function drawTree(data, svg, caption, { animate = true } = {}) {
    on what went wrong: Safari says "The string did not match the expected
    pattern", which sent this exact bug on a long detour. Read the body once,
    then decide what it is. */
+/* Ask for the answer until it exists.
+
+   A 202 means the fit is still going, which on a small host can be several
+   minutes; the visuals are driven by the event stream in the meantime, so this
+   only has to be patient. Every failure the server can describe arrives as a
+   normal error response and is raised. */
+async function collectImpact(url, signal) {
+  const started = Date.now();
+  for (;;) {
+    if (signal.aborted) throw Object.assign(new Error("stopped"), { name: "AbortError" });
+    const response = await fetch(url, { signal, cache: "no-store" });
+    if (response.status === 202) {
+      // Give up long after any real fit would have finished, so a server that
+      // died mid-run does not leave the page waiting forever.
+      if (Date.now() - started > 30 * 60 * 1000) {
+        throw new Error("the comparison did not finish within thirty minutes");
+      }
+      await sleep(2000);
+      continue;
+    }
+    const body = await readResult(response);
+    if (!response.ok) throw new Error(body.detail || "the comparison failed");
+    return body;
+  }
+}
+
 async function readResult(response) {
   const body = await response.text();
   try {

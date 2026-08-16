@@ -81,3 +81,19 @@ The downstream comparison fits ninety models. On the free plan's single shared
 CPU a wide table can take five minutes or more, and the interface says so before
 you start it. The **Stop and just download the CSV** button exists for exactly
 this: the cleaned file does not need the fits.
+
+## Why the fit used to fail with a 502
+
+Render's proxy will not hold an HTTP request open for minutes, and this stage
+fits ninety models. The request was being cut off and the browser received the
+proxy's own HTML error page, which it then tried to read as JSON.
+
+The measurement now runs past the request that starts it. Posting to
+`/api/audit/{job}/impact` returns straight away, the browser watches the event
+stream for progress, and it polls `GET /api/audit/{job}/impact` for the answer,
+which replies 202 until there is one. Nothing about the fitting changed.
+
+`CRUCIBLE_MAX_ROWS` is set to 2000 in the blueprint for the same reason: on a
+shared CPU the default of 5000 makes a wide table take twenty minutes. Raise it
+if you move to a paid instance. Whatever it is set to, the report and the
+interface both say how many rows were actually used.
