@@ -1,0 +1,95 @@
+{
+  "_protocol": {
+    "summary": "A held-out evaluation set for Crucible, built under the same admission rule as the benchmark the tool was designed against: a column is a positive only if a citable source statement, quoted verbatim, places it after the stated prediction point or shows it records the outcome. Our own judgement, correlation with the target, feature importance and any language model's opinion are inadmissible as evidence.",
+    "why_held_out": "None of these five datasets appears in the corpus Crucible's design was measured on (AI4I, BANK, BONEMARROW, COMPAS, DIABETES, ECHO, HEARTFAIL, KOI, LC, STEEL, SUPPORT2, TITANIC, CRIME, MI, STUDENT). No column, description or prompt from any of them was seen while the tool was built.",
+    "source": "UCI Machine Learning Repository, fetched through the ucimlrepo package. Every quotation below is the column's own description field as served by the repository, so it can be re-fetched and checked rather than taken on trust.",
+    "clean_controls": "Three datasets are included with zero positives. They are not padding. A detector is only useful if it stays quiet on an ordinary table, and a recall-only evaluation cannot see that.",
+    "known_weakness": "13 positives across 2 datasets, 12 of them from one dataset. This is a small and concentrated sample and per-dataset results are reported for that reason."
+  },
+
+  "datasets": [
+    {
+      "name": "CIRRHOSIS",
+      "uci_id": 878,
+      "title": "Cirrhosis Patient Survival Prediction",
+      "target": "Status",
+      "target_note": "status of the patient C (censored), CL (censored due to liver tx), or D (death)",
+      "prediction_point": "at registration into the trial, using only the baseline clinical examination and laboratory work, before any follow-up and before the patient's eventual outcome is known",
+      "drop_columns": ["ID"],
+      "drop_reason": "unique identifier; identifier artefacts are a different failure and are out of scope",
+      "positives": {
+        "N_Days": {
+          "subtype": "CONSEQUENCE",
+          "quote": "number of days between registration and the earlier of death, transplantation, or study analysis time",
+          "locator": "UCI id 878, variable description for N_Days",
+          "explicitness": "NAMED_BY_SOURCE",
+          "note": "The quantity is defined by which terminal event happened, and two of the three events it names are two of the three target values. A short N_Days means the patient died or was transplanted; a long one means they survived to analysis. This is the same shape as the time-to-event columns already documented in SUPPORT2 and HEARTFAIL."
+        }
+      }
+    },
+
+    {
+      "name": "DROPOUT",
+      "uci_id": 697,
+      "title": "Predict Students' Dropout and Academic Success",
+      "target": "Target",
+      "target_note": "three-category classification, dropout / enrolled / graduate, assigned at the end of the normal duration of the course",
+      "prediction_point": "at enrollment, before the student has attended any classes, sat any evaluation or completed any semester",
+      "drop_columns": [],
+      "positives": {
+        "Curricular units 1st sem (credited)":     {"subtype": "TIMING", "quote": "Number of curricular units credited in the 1st semester"},
+        "Curricular units 1st sem (enrolled)":     {"subtype": "TIMING", "quote": "Number of curricular units enrolled in the 1st semester"},
+        "Curricular units 1st sem (evaluations)":  {"subtype": "TIMING", "quote": "Number of evaluations to curricular units in the 1st semester"},
+        "Curricular units 1st sem (approved)":     {"subtype": "TIMING", "quote": "Number of curricular units approved in the 1st semester"},
+        "Curricular units 1st sem (grade)":        {"subtype": "TIMING", "quote": "Grade average in the 1st semester (between 0 and 20)"},
+        "Curricular units 1st sem (without evaluations)": {"subtype": "TIMING", "quote": "Number of curricular units without evalutions in the 1st semester"},
+        "Curricular units 2nd sem (credited)":     {"subtype": "TIMING", "quote": "Number of curricular units credited in the 2nd semester"},
+        "Curricular units 2nd sem (enrolled)":     {"subtype": "TIMING", "quote": "Number of curricular units enrolled in the 2nd semester"},
+        "Curricular units 2nd sem (evaluations)":  {"subtype": "TIMING", "quote": "Number of evaluations to curricular units in the 2nd semester"},
+        "Curricular units 2nd sem (approved)":     {"subtype": "TIMING", "quote": "Number of curricular units approved in the 2nd semester"},
+        "Curricular units 2nd sem (grade)":        {"subtype": "TIMING", "quote": "Grade average in the 2nd semester (between 0 and 20)"},
+        "Curricular units 2nd sem (without evaluations)": {"subtype": "TIMING", "quote": "Number of curricular units without evalutions in the 1st semester"}
+      },
+      "positives_locator": "UCI id 697, the variable description of each column, read against the target's own description",
+      "positives_explicitness": "INFERRED_FROM_DESCRIPTION",
+      "positives_note": "Each of these twelve records what happened during a semester the student has not yet begun at the stated prediction point. This coding is a claim about the triple (column, target, prediction point) and not about the columns alone: predicted at the end of the second semester instead, the same twelve are legitimate. That is why the prediction point is stated, and a reader who rejects it can reject this dataset alone rather than the whole evaluation."
+    },
+
+    {
+      "name": "ADULT",
+      "uci_id": 2,
+      "title": "Adult (Census Income)",
+      "target": "income",
+      "target_note": ">50K, <=50K",
+      "prediction_point": "at the time the census record is collected, using the demographic and employment details recorded in that same record",
+      "drop_columns": [],
+      "positives": {},
+      "clean_note": "Every column is a demographic or employment attribute recorded in the same census interview that records income. Nothing here is produced by the outcome or recorded after it. Included to measure false positives on an ordinary table."
+    },
+
+    {
+      "name": "MATERNAL",
+      "uci_id": 863,
+      "title": "Maternal Health Risk",
+      "target": "RiskLevel",
+      "target_note": "risk intensity level during pregnancy, three classes",
+      "prediction_point": "at the point of examination, from the vital signs measured during that examination",
+      "drop_columns": [],
+      "positives": {},
+      "clean_note": "Six vital signs taken at the examination that produces the risk assessment. A hard control: the columns are strongly predictive of the target by design, so a detector that confuses predictiveness with leakage will fail here."
+    },
+
+    {
+      "name": "CDC_DIABETES",
+      "uci_id": 891,
+      "title": "CDC Diabetes Health Indicators",
+      "target": "Diabetes_binary",
+      "target_note": "0 = no diabetes, 1 = prediabetes or diabetes",
+      "prediction_point": "at the time of the survey interview, from the answers the respondent gives in that same interview",
+      "drop_columns": ["ID"],
+      "drop_reason": "patient identifier; out of scope as an identifier artefact",
+      "positives": {},
+      "clean_note": "All twenty-one columns are self-reported answers from one BRFSS survey. Several are co-morbidities strongly associated with diabetes, which is the point: association is not derivation, and a detector should not flag them."
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: crucible
+    runtime: python
+    plan: starter          # free spins down when idle; see the note in README
+    buildCommand: pip install -e ".[web]"
+    # One worker. Audit jobs live in this process's memory, so a second worker
+    # would be answering progress polls for jobs it has never heard of.
+    startCommand: uvicorn web.app:app --host 0.0.0.0 --port $PORT --workers 1 --timeout-keep-alive 120
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+
+      # Comma-separated Gemini keys for the shared demonstration pool. Set these
+      # in the dashboard, never in the repository. Leave them unset and the
+      # pooled option is hidden: the interface still loads, the replay still
+      # runs and the downstream comparison still works, because only the
+      # semantic screen needs credentials.
+      - key: CRUCIBLE_GEMINI_KEYS
+        sync: false
+      - key: CRUCIBLE_GEMINI_DAILY_LIMIT
+        value: "20"
+
+      # Optional. Setting one of these lets the server reach that provider
+      # without a visitor supplying anything. Left unset, which is the normal
+      # case for a public deployment, the matching model stays locked until
+      # someone pastes their own key.
+      - key: FEATHERLESS_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+      # CRUCIBLE_RECALL_MODEL is deliberately not set here. It overrides the
+      # catalogue default, and pointing it at a model that needs a key of its
+      # own lands every visitor on a locked selection with nothing to run. The
+      # catalogue's default is the best-measured model that needs no key, and a
+      # test holds it to that.
+      - key: CRUCIBLE_SHUFFLES
+        value: "3"

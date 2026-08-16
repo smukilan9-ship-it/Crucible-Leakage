@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 2332" width="1500" height="2332">
+<rect width="1500" height="2332" fill="#f5f2e9"/>
+<text x="80" y="76" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="16" fill="#5c9256" font-weight="700" text-anchor="start" letter-spacing="5">HOW CRUCIBLE WORKS</text>
+<text x="80" y="128" font-family="Iowan Old Style, Georgia, serif" font-size="34" fill="#17201a" font-weight="400" text-anchor="start" letter-spacing="0">Every box is a step that runs.</text>
+<rect x="80" y="176" width="1240" height="213" rx="14" fill="#fffdf7" stroke="#cdd2c9" stroke-width="1.4"/>
+<path d="M94,176 h1212 a14,14 0 0 1 14,14 v-9 h-1240 v--9 a14,14 0 0 1 14,-14 z" fill="#17201a"/>
+<text x="106" y="220" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="15" fill="#17201a" font-weight="700" text-anchor="start" letter-spacing="2.5">YOU PROVIDE</text>
+<text x="106" y="256" font-family="Iowan Old Style, Georgia, serif" font-size="27" fill="#17201a" font-weight="400" text-anchor="start" letter-spacing="0">A table, and one sentence</text>
+<text x="106" y="288" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">Your CSV or Parquet file, and the column you are trying to predict.</text>
+<text x="106" y="313" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">Then the sentence nothing else can supply: when the prediction happens in real life.</text>
+<text x="106" y="338" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">Optionally your data dictionary, which turns every verdict into a documented one.</text>
+<line x1="700.0" y1="389" x2="700.0" y2="424" stroke="#8b938a" stroke-width="1.6"/>
+<path d="M695.0,423 L700.0,433 L705.0,423 z" fill="#8b938a"/>
+<rect x="80" y="433" width="1240" height="112" rx="14" fill="#f5f2e9" stroke="#8b938a" stroke-width="1.4" stroke-dasharray="7 6"/>
+<text x="106" y="475" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="15" fill="#667064" font-weight="700" text-anchor="start" letter-spacing="2.5">FIRST, A CHECK</text>
+<text x="106" y="511" font-family="Iowan Old Style, Georgia, serif" font-size="24" fill="#17201a" font-weight="400" text-anchor="start" letter-spacing="0">Do the column names actually mean anything?</text>
+<text x="1294" y="511" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="15" fill="#667064" font-weight="400" text-anchor="end" letter-spacing="0">V1, V2, V3 cannot be read</text>
+<text x="716.0" y="569" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="15" fill="#5c9256" font-weight="700" text-anchor="start" letter-spacing="0">yes</text>
+<line x1="700.0" y1="545" x2="700.0" y2="580" stroke="#8b938a" stroke-width="1.6"/>
+<path d="M695.0,579 L700.0,589 L705.0,579 z" fill="#8b938a"/>
+<rect x="80" y="589" width="604.0" height="348" rx="14" fill="#fffdf7" stroke="#cdd2c9" stroke-width="1.4"/>
+<path d="M94,589 h576.0 a14,14 0 0 1 14,14 v-9 h-604.0 v--9 a14,14 0 0 1 14,-14 z" fill="#5c9256"/>
+<text x="106" y="633" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="15" fill="#5c9256" font-weight="700" text-anchor="start" letter-spacing="2.5">SCREEN ONE</text>
+<text x="106" y="669" font-family="Iowan Old Style, Georgia, serif" font-size="26" fill="#17201a" font-weight="400" text-anchor="start" letter-spacing="0">What the names mean</text>
+<text x="106" y="707" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">A language model is asked, for every column at once: could</text>
+<text x="106" y="728" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">this value have been known at your prediction point?</text>
+<text x="106" y="749" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0"></text>
+<text x="106" y="770" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">The columns are shuffled and the question asked again, once</text>
+<text x="106" y="791" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">or three times depending on how much that model's answers</text>
+<text x="106" y="812" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">move when the order changes.</text>
+<text x="106" y="833" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0"></text>
+<text x="106" y="854" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">An answer covering less than 90% of the table, or naming</text>
+<text x="106" y="875" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">columns the table does not have, is thrown away and asked</text>
+<text x="106" y="896" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">again. A majority of the passes settles each column.</text>
+<rect x="716.0" y="589" width="604.0" height="348" rx="14" fill="#fffdf7" stroke="#cdd2c9" stroke-width="1.4"/>
+<path d="M730.0,589 h576.0 a14,14 0 0 1 14,14 v-9 h-604.0 v--9 a14,14 0 0 1 14,-14 z" fill="#2563a8"/>
+<text x="742.0" y="633" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="15" fill="#2563a8" font-weight="700" text-anchor="start" letter-spacing="2.5">SCREEN TWO</text>
+<text x="742.0" y="669" font-family="Iowan Old Style, Georgia, serif" font-size="26" fill="#17201a" font-weight="400" text-anchor="start" letter-spacing="0">What the numbers say</text>
+<text x="742.0" y="707" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">The plain statistical check, on the same columns: how</text>
+<text x="742.0" y="728" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">strongly does each one correlate with the target?</text>
+<text x="742.0" y="749" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0"></text>
+<text x="742.0" y="770" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">Anything above 0.5 is flagged.</text>
+<text x="742.0" y="791" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0"></text>
+<text x="742.0" y="812" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">This one is here to be disagreed with. The two screens fail</text>
+<text x="742.0" y="833" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">in opposite directions, and the columns they disagree about</text>
+<text x="742.0" y="854" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">are the interesting ones: a leak with no correlation, or a</text>
+<text x="742.0" y="875" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">strong honest predictor that a threshold would delete.</text>
+<path d="M382.0,937 V961 H700.0 V981" fill="none" stroke="#8b938a" stroke-width="1.6"/>
+<path d="M1018.0,937 V961 H700.0 V981" fill="none" stroke="#8b938a" stroke-width="1.6"/>
+<path d="M695.0,981 L700.0,991 L705.0,981 z" fill="#8b938a"/>
+<rect x="80" y="991" width="1240" height="152" rx="14" fill="#fffdf7" stroke="#cdd2c9" stroke-width="1.4"/>
+<path d="M94,991 h1212 a14,14 0 0 1 14,14 v-9 h-1240 v--9 a14,14 0 0 1 14,-14 z" fill="#f8c14a"/>
+<text x="106" y="1035" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="15" fill="#8d6b17" font-weight="700" text-anchor="start" letter-spacing="2.5">SORTED</text>
+<text x="106" y="1069" font-family="Iowan Old Style, Georgia, serif" font-size="26" fill="#17201a" font-weight="400" text-anchor="start" letter-spacing="0">Which screens flagged it</text>
+<rect x="106" y="1085" width="291" height="44" rx="10" fill="#f5f2e9" stroke="#cdd2c9" stroke-width="1.4"/>
+<text x="121" y="1106" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="15.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">both screens</text>
+<text x="121" y="1123" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" fill="#8b938a" font-weight="400" text-anchor="start" letter-spacing="0">obvious</text>
+<rect x="409" y="1085" width="291" height="44" rx="10" fill="#b6d5a4" stroke="#5c9256" stroke-width="1.4"/>
+<text x="424" y="1106" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="15.5" fill="#17201a" font-weight="700" text-anchor="start" letter-spacing="0">the model only</text>
+<text x="424" y="1123" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">the interesting group</text>
+<rect x="712" y="1085" width="291" height="44" rx="10" fill="#f5f2e9" stroke="#cdd2c9" stroke-width="1.4"/>
+<text x="727" y="1106" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="15.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">statistics only</text>
+<text x="727" y="1123" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" fill="#8b938a" font-weight="400" text-anchor="start" letter-spacing="0">usually a strong honest column</text>
+<rect x="1015" y="1085" width="291" height="44" rx="10" fill="#f5f2e9" stroke="#cdd2c9" stroke-width="1.4"/>
+<text x="1030" y="1106" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="15.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">neither</text>
+<text x="1030" y="1123" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="12.5" fill="#8b938a" font-weight="400" text-anchor="start" letter-spacing="0">left alone</text>
+<line x1="700.0" y1="1143" x2="700.0" y2="1178" stroke="#8b938a" stroke-width="1.6"/>
+<path d="M695.0,1177 L700.0,1187 L705.0,1177 z" fill="#8b938a"/>
+<path d="M1320,489 H1364 V1103 H1334" fill="none" stroke="#c25b32" stroke-width="1.6" stroke-dasharray="6 5"/>
+<path d="M1336,1098 L1326,1103 L1336,1108 z" fill="#c25b32"/>
+<text x="1374" y="475" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="15" fill="#c25b32" font-weight="700" text-anchor="start" letter-spacing="0">no</text>
+<text x="1374" y="497" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="12.5" fill="#c25b32" font-weight="400" text-anchor="start" letter-spacing="0">the reading</text>
+<text x="1374" y="515" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="12.5" fill="#c25b32" font-weight="400" text-anchor="start" letter-spacing="0">step is</text>
+<text x="1374" y="533" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="12.5" fill="#c25b32" font-weight="400" text-anchor="start" letter-spacing="0">skipped, and</text>
+<text x="1374" y="551" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="12.5" fill="#c25b32" font-weight="400" text-anchor="start" letter-spacing="0">the report</text>
+<text x="1374" y="569" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="12.5" fill="#c25b32" font-weight="400" text-anchor="start" letter-spacing="0">says so</text>
+<rect x="80" y="1187" width="1240" height="213" rx="14" fill="#fffdf7" stroke="#cdd2c9" stroke-width="1.4"/>
+<path d="M94,1187 h1212 a14,14 0 0 1 14,14 v-9 h-1240 v--9 a14,14 0 0 1 14,-14 z" fill="#c25b32"/>
+<text x="106" y="1231" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="15" fill="#c25b32" font-weight="700" text-anchor="start" letter-spacing="2.5">IF YOU BROUGHT DOCUMENTATION</text>
+<text x="106" y="1267" font-family="Iowan Old Style, Georgia, serif" font-size="27" fill="#17201a" font-weight="400" text-anchor="start" letter-spacing="0">The column gets to defend itself</text>
+<text x="106" y="1299" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">Every flagged column is checked back against your own data dictionary. If the documentation</text>
+<text x="106" y="1324" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">says the value was already fixed at the moment you predict, the column is marked contested</text>
+<text x="106" y="1349" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">and the decision is handed to you rather than made for you.</text>
+<line x1="700.0" y1="1400" x2="700.0" y2="1435" stroke="#8b938a" stroke-width="1.6"/>
+<path d="M695.0,1434 L700.0,1444 L705.0,1434 z" fill="#8b938a"/>
+<rect x="80" y="1444" width="1240" height="213" rx="14" fill="#17201a" stroke="#17201a" stroke-width="1.4"/>
+<text x="106" y="1488" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="15" fill="#b6d5a4" font-weight="700" text-anchor="start" letter-spacing="2.5">YOU DECIDE</text>
+<text x="106" y="1524" font-family="Iowan Old Style, Georgia, serif" font-size="27" fill="#fffdf7" font-weight="400" text-anchor="start" letter-spacing="0">Nothing is deleted for you</text>
+<text x="106" y="1556" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16.5" fill="#a9b3a8" font-weight="400" text-anchor="start" letter-spacing="0">You confirm or reject each flagged column, with the reason and the evidence in front of you.</text>
+<text x="106" y="1581" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16.5" fill="#a9b3a8" font-weight="400" text-anchor="start" letter-spacing="0">On the smallest dataset we tested, every model dropped one column too many, and that cost</text>
+<text x="106" y="1606" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16.5" fill="#a9b3a8" font-weight="400" text-anchor="start" letter-spacing="0">more accuracy than the leak did. This step is a person, not a setting.</text>
+<line x1="700.0" y1="1657" x2="700.0" y2="1700" stroke="#8b938a" stroke-width="1.6"/>
+<path d="M695.0,1699 L700.0,1709 L705.0,1699 z" fill="#8b938a"/>
+<text x="714.0" y="1688.0" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="14" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">optional, and it takes a few minutes</text>
+<rect x="80" y="1709" width="1240" height="313" rx="14" fill="#fffdf7" stroke="#cdd2c9" stroke-width="1.4"/>
+<path d="M94,1709 h1212 a14,14 0 0 1 14,14 v-9 h-1240 v--9 a14,14 0 0 1 14,-14 z" fill="#5c9256"/>
+<text x="106" y="1753" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="15" fill="#5c9256" font-weight="700" text-anchor="start" letter-spacing="2.5">MEASURE THE DAMAGE</text>
+<text x="106" y="1789" font-family="Iowan Old Style, Georgia, serif" font-size="27" fill="#17201a" font-weight="400" text-anchor="start" letter-spacing="0">Rebuild the model with and without</text>
+<text x="106" y="1821" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">Three versions are fitted: every column, your confirmed drops removed, and, to keep everyone</text>
+<text x="106" y="1846" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">honest, what a correlation threshold would have removed instead.</text>
+<text x="106" y="1871" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">Two model families, three settings each, five folds. Ninety fits in all.</text>
+<text x="106" y="1896" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0"></text>
+<text x="106" y="1921" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">Every version gets identical folds, identical encoding and an identical search, so the clean one</text>
+<text x="106" y="1946" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">is the best version of itself and not a strawman. The decision threshold is chosen inside the</text>
+<text x="106" y="1971" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">training folds only, never on the rows being scored.</text>
+<line x1="700.0" y1="2022" x2="700.0" y2="2057" stroke="#8b938a" stroke-width="1.6"/>
+<path d="M695.0,2056 L700.0,2066 L705.0,2056 z" fill="#8b938a"/>
+<rect x="80" y="2066" width="1240" height="146" rx="14" fill="#fffdf7" stroke="#cdd2c9" stroke-width="1.4"/>
+<path d="M94,2066 h1212 a14,14 0 0 1 14,14 v-9 h-1240 v--9 a14,14 0 0 1 14,-14 z" fill="#17201a"/>
+<text x="106" y="2110" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="15" fill="#667064" font-weight="700" text-anchor="start" letter-spacing="2.5">YOU GET</text>
+<text x="106" y="2154" font-family="Iowan Old Style, Georgia, serif" font-size="21" fill="#17201a" font-weight="400" text-anchor="start" letter-spacing="0">the cleaned file</text>
+<text x="106" y="2182" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">your table without the columns you confirmed</text>
+<text x="512" y="2154" font-family="Iowan Old Style, Georgia, serif" font-size="21" fill="#17201a" font-weight="400" text-anchor="start" letter-spacing="0">the report</text>
+<text x="512" y="2182" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">every column, verdict and reason, as JSON</text>
+<text x="918" y="2154" font-family="Iowan Old Style, Georgia, serif" font-size="21" fill="#17201a" font-weight="400" text-anchor="start" letter-spacing="0">the figures</text>
+<text x="918" y="2182" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14.5" fill="#667064" font-weight="400" text-anchor="start" letter-spacing="0">vector, ready to drop into a paper</text>
+<text x="80" y="2264" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="15" fill="#8b938a" font-weight="400" text-anchor="start" letter-spacing="0">The reading step agrees with a source-grounded answer key 0.90 of the time across 12 datasets.</text>
+<text x="80" y="2288" font-family="Menlo, DejaVu Sans Mono, monospace" font-size="15" fill="#8b938a" font-weight="400" text-anchor="start" letter-spacing="0">The correlation check, handed its best possible cutoff in hindsight, reaches 0.63.</text>
+</svg>

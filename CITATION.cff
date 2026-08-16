@@ -1,0 +1,89 @@
+cff-version: 1.2.0
+title: "Crucible: a semantic screen for feature-level target leakage in tabular datasets"
+message: "If you use this software, please cite it using these metadata."
+type: software
+# Three fields below cannot be filled from the source tree and must be set
+# before the Zenodo deposit: the author's family name, ORCID, and the public
+# repository URL. Everything else here is final.
+authors:
+  - given-names: Mukilan
+abstract: >-
+  Crucible audits a tabular dataset for feature-level target leakage: columns
+  whose value encodes the outcome they would be used to predict. A language
+  model reads the column names, and optionally the dataset's own data
+  dictionary, against a stated target and a stated prediction point, and judges
+  each column several times in different column orders. A correlation screen
+  runs beside it as a deliberately weaker second witness, and the disagreement
+  between the two is the tool's main output. Nothing is deleted without human
+  confirmation. The tool then fits the same learners on identical folds with an
+  identical hyperparameter search across three arms, keeping every column,
+  removing the confirmed ones, and removing instead whatever a correlation
+  threshold would have removed, and reports what the leakage was worth and
+  whether the cheap check would have found it.
+keywords:
+  - data leakage
+  - target leakage
+  - tabular machine learning
+  - data quality
+  - large language models
+  - reproducibility
+license: MIT
+repository-code: "https://github.com/smukilan9-ship-it/Crucible-Leakage"
+version: "0.1.0"
+date-released: "2026-08-16"
+references:
+  - type: article
+    title: "Leakage in Data Mining: Formulation, Detection, and Avoidance"
+    authors:
+      - family-names: Kaufman
+        given-names: Shachar
+      - family-names: Rosset
+        given-names: Saharon
+      - family-names: Perlich
+        given-names: Claudia
+    year: 2011
+    collection-title: >-
+      Proceedings of the 17th ACM SIGKDD International Conference on Knowledge
+      Discovery and Data Mining
+    start: 556
+    end: 563
+    notes: >-
+      The formulation Crucible implements. Kaufman and colleagues set out the
+      condition a feature must meet in terms of what was knowable at the moment
+      of prediction; Crucible is an attempt to apply that condition to a table
+      whose columns have to be read rather than computed over.
+  - type: article
+    title: >-
+      Leakage and the Reproducibility Crisis in Machine-Learning-Based Science
+    authors:
+      - family-names: Kapoor
+        given-names: Sayash
+      - family-names: Narayanan
+        given-names: Arvind
+    year: 2023
+    journal: Patterns
+    volume: 4
+    issue: 9
+    notes: >-
+      The scale of the failure Crucible screens for, across 17 fields and 294
+      affected papers.
+  - type: conference-paper
+    title: >-
+      Elephants Never Forget: Memorization and Learning of Tabular Data in
+      Large Language Models
+    authors:
+      - family-names: Bordt
+        given-names: Sebastian
+      - family-names: Nori
+        given-names: Harsha
+      - family-names: Rodrigues
+        given-names: Vanessa
+      - family-names: Nushi
+        given-names: Besmira
+      - family-names: Caruana
+        given-names: Rich
+    year: 2024
+    collection-title: Conference on Language Modeling
+    notes: >-
+      The standing objection to reading well-known public tables with a
+      language model. Crucible inherits it and does not resolve it.

@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#17201a">
+<title>Crucible</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=0.1.0">
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="#" id="brand">
+    <span class="brand-mark"><i></i></span>
+    <span class="brand-text">Crucible</span>
+  </a>
+  <span class="topbar-file" id="topbar-file"></span>
+  <span class="topbar-status" id="topbar-status"></span>
+</header>
+
+<nav class="steps-nav" id="steps-nav" aria-label="Stages">
+  <button type="button" data-tab="overview"><b>1</b><span>Overview</span></button>
+  <button type="button" data-tab="data"><b>2</b><span>Data</span></button>
+  <button type="button" data-tab="model"><b>3</b><span>Model</span></button>
+  <button type="button" data-tab="detect"><b>4</b><span>Detection</span></button>
+  <button type="button" data-tab="review"><b>5</b><span>Review</span></button>
+  <button type="button" data-tab="results"><b>6</b><span>Results</span></button>
+  <button type="button" data-tab="settings" class="nav-settings"><b>&#9881;</b><span>Settings</span></button>
+</nav>
+
+<main>
+
+<!-- ══════════ 1 · OVERVIEW ══════════ -->
+<section class="tab" id="tab-overview">
+
+  <div class="hero">
+    <div class="hero-copy">
+      <span class="eyebrow">Target leakage audit</span>
+      <h1>Find the columns that are <em>giving away the answer.</em></h1>
+      <p class="deck">Upload a table, name what you are predicting, and say when the prediction
+        happens. Crucible reads every column, tells you which ones encode the outcome, why each
+        one does, and how much accuracy they were faking.</p>
+    </div>
+    <!-- A real case rather than a decoration: these are the actual Titanic
+         numbers, and they are what makes the point faster than a paragraph. -->
+    <figure class="hero-figure">
+      <figcaption>
+        <span class="hf-eyebrow">Predicting <code>survived</code></span>
+        <span class="hf-note">correlation with the target vs. what the column actually is</span>
+      </figcaption>
+      <div class="hf-row hf-leak">
+        <b>boat</b>
+        <span class="hf-bar"><i style="width:1.3%"></i></span>
+        <span class="hf-r">0.013</span>
+        <span class="hf-verdict">decides the outcome</span>
+      </div>
+      <div class="hf-row hf-leak">
+        <b>body</b>
+        <span class="hf-bar"><i style="width:0"></i></span>
+        <span class="hf-r">none</span>
+        <span class="hf-verdict">decides the outcome</span>
+      </div>
+      <div class="hf-row hf-ok">
+        <b>sex</b>
+        <span class="hf-bar"><i style="width:52.9%"></i></span>
+        <span class="hf-r">0.529</span>
+        <span class="hf-verdict">legitimate</span>
+      </div>
+      <p class="hf-foot">A correlation threshold keeps both leaks and deletes the real predictor.</p>
+    </figure>
+  </div>
+
+  <div class="upload-row">
+    <div id="dropzone" class="dropzone" tabindex="0">
+      <input type="file" id="file" accept=".csv,.parquet" hidden>
+      <span class="dz-main">Drop your dataset, or click to select</span>
+      <span class="dz-sub">Parsed in your browser. Only column names are ever sent, and only
+        when you start the audit &mdash; a comment header or an unusual delimiter is worked
+        out for you.</span>
+      <span class="dz-file" id="dz-file"></span>
+    </div>
+
+    <div class="dict-card">
+      <div class="dict-head">
+        <span class="eyebrow">Optional</span>
+        <h3>Data dictionary</h3>
+      </div>
+      <p>A second file with one row per column and its documented meaning. Two columns is enough:
+        the column name, and its description.</p>
+      <p class="dict-why">Supplying it changes what you get back. Verdicts stop being inferred from
+        column names and start being grounded in your dataset&rsquo;s own documentation, and every
+        dropped column arrives with a quotable sentence explaining why &mdash; which is the
+        difference between a decision that looks reasonable and one you can defend in a paper.</p>
+      <input type="file" id="dict-file" accept=".csv" hidden>
+      <button type="button" class="ghost" id="dict-btn">Attach a dictionary</button>
+      <span class="dict-status" id="dict-status"></span>
+    </div>
+  </div>
+
+  <div class="try-row">
+    <button type="button" id="demo-btn" class="ghost">Replay the Titanic example</button>
+    <span class="note">1,309 passengers, two real leaks. No upload and no API key needed.</span>
+  </div>
+
+  <div class="paper-strip">
+    <div class="paper-strip-main">
+      <span class="eyebrow">The formulation this implements</span>
+      <p class="paper-cite">Kaufman, S., Rosset, S., Perlich, C., &amp; Stitelman, O. (2012).
+        <em>Leakage in Data Mining: Formulation, Detection, and Avoidance.</em>
+        <b>ACM Transactions on Knowledge Discovery from Data</b> 6(4), Article 15.
+        Earlier as KDD 2011, 556&ndash;563. <span class="doi">doi:10.1145/2382577.2382579</span></p>
+      <p class="paper-note">Kaufman and colleagues set the legitimacy condition a feature has to
+        meet, in terms of what was knowable at the moment of prediction. What has been missing
+        since is a way to apply it to a table you have just been handed, because the condition
+        turns on what each column <em>means</em> and that is not in the numbers.</p>
+    </div>
+    <div class="paper-strip-side">
+      <p class="paper-scale">Leakage has been surveyed across
+        <b>17 scientific fields and 294 affected papers</b>.</p>
+      <p class="paper-cite small">Kapoor, S., &amp; Narayanan, A. (2023). Leakage and the
+        Reproducibility Crisis in Machine-Learning-Based Science.
+        <b>Patterns</b> 4(9), 100804. <span class="doi">doi:10.1016/j.patter.2023.100804</span></p>
+    </div>
+  </div>
+
+  <!-- why it matters -->
+  <div class="dark-panel" id="why">
+    <span class="eyebrow light">Why this matters</span>
+    <h2>A leaked column makes every number better, right up until it doesn&rsquo;t.</h2>
+
+    <div class="why-grid">
+      <article>
+        <span class="why-n">01</span>
+        <h3>The failure looks like success</h3>
+        <p>A column that records why the outcome happened is perfectly correlated with it. The model
+          learns to read the answer instead of predicting it. Accuracy climbs, the validation score
+          climbs with it, and nothing anywhere reports a problem. The model ships.</p>
+      </article>
+      <article>
+        <span class="why-n">02</span>
+        <h3>Cross-validation cannot see it</h3>
+        <p>Splitting the data does not help, because the leaked column sits on both sides of every
+          split. Each fold independently confirms the model is excellent. This is structural: no
+          amount of resampling, nesting, or holding out catches a column that was contaminated
+          before the split was drawn.</p>
+      </article>
+      <article>
+        <span class="why-n">03</span>
+        <h3>Statistics point the wrong way</h3>
+        <p>The obvious defense is a correlation threshold, and it fails in both directions. On
+          Titanic, <code>boat</code> correlates &minus;0.013 with survival and decides it outright,
+          while <code>sex</code> correlates &minus;0.529 and is entirely legitimate. A threshold
+          keeps the leak and deletes the real signal.</p>
+      </article>
+      <article>
+        <span class="why-n">04</span>
+        <h3>The information is in the name</h3>
+        <p>A person reading <code>autopsy_code</code> in a mortality table knows instantly, without
+          computing anything, because the name says where the value comes from. That reasoning is
+          semantic, not statistical, which is exactly why a language model can do it and a
+          correlation cannot.</p>
+      </article>
+    </div>
+
+    <div class="citation" hidden>
+      <span class="eyebrow light">The formulation this tool implements</span>
+      <p class="cite-text">Kaufman, S., Rosset, S., &amp; Perlich, C. (2011).
+        <em>Leakage in Data Mining: Formulation, Detection, and Avoidance.</em>
+        Proceedings of the 17th ACM SIGKDD International Conference on Knowledge Discovery and Data
+        Mining, 556&ndash;563. Extended as Kaufman, Rosset, Perlich &amp; Stitelman,
+        <em>ACM Transactions on Knowledge Discovery from Data</em> 6(4), 2012.</p>
+      <p class="cite-note">Kaufman and colleagues named the problem and set out the legitimacy
+        condition a feature has to meet, in terms of what was knowable at the moment of prediction.
+        Nothing here disputes that formulation. What has been missing for fifteen years is a way to
+        actually apply it to a table you have just been handed, because the condition depends on
+        what each column <em>means</em> and that is not recoverable from the numbers.</p>
+    </div>
+  </div>
+
+  <div class="stage-map">
+    <h2 class="section-h">What happens next</h2>
+    <ol>
+      <li><b>Data</b><span>Read every column and every row, see what is missing, and set the target
+        and the prediction point.</span></li>
+      <li><b>Model</b><span>Choose which model reads your columns, or bring your own key.</span></li>
+      <li><b>Detection</b><span>Both screens run: one reads the names, one measures correlation.</span></li>
+      <li><b>Review</b><span>You confirm or reject each flagged column. Nothing is dropped without
+        you.</span></li>
+      <li><b>Results</b><span>The same models fit twice, with and without the leaks, and
+        compared.</span></li>
+    </ol>
+  </div>
+
+  <!-- The command line is the half of this tool that scales. A reviewer with
+       forty datasets is not going to upload them one at a time, and until this
+       panel existed there was no way to discover from the browser that the
+       terminal version was there at all. -->
+  <div class="cli-panel">
+    <div class="cli-copy">
+      <span class="eyebrow">Without a browser</span>
+      <h2 class="section-h">The same audit, from a terminal</h2>
+      <p class="deck">This page and the command line call the same function, so the two cannot
+        drift apart. Use the terminal when you have more than one table, when the audit belongs
+        in a pipeline, or when the column names should not leave your machine until you say so.</p>
+      <p class="note">Python 3.11 or later. The measurement commands need no API key at all.</p>
+    </div>
+    <div class="cli-code">
+<pre><code><span class="c">$</span> pip install crucible-leakage
+<span class="c">$</span> crucible impact titanic.csv --target survived \
+      --drop boat --drop body --against-correlation
+
+correlation would drop: sex
+
+  Your model scored 0.174 macro F1 higher than it deserved to.
+
+  1,309 rows, 2 classes (0, 1)
+
+  random forest
+    arm            macro F1  weighted  mistakes
+    with leaks       0.9715    0.9732        35
+    cleaned          0.7970    0.8079       252
+    correlation      0.9740    0.9755        32
+    leaks overstated macro F1 by +0.1745, weighted by +0.1653
+    a correlation threshold would have left +0.1770 of that in place</code></pre>
+      <p class="cli-caption">Real output, not a mock-up. The third arm is the point: a
+        correlation threshold scores <b>0.9740</b>, <em>above</em> the 0.9715 you get by doing
+        nothing at all, because it deleted <code>sex</code> and kept both leaks.</p>
+      <p class="cli-caption"><code>crucible --help</code> lists every flag, and the README in the
+        repository carries the protocol in full.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ 2 · DATA ══════════ -->
+<section class="tab" id="tab-data">
+  <div class="tab-head">
+    <span class="eyebrow">Stage 2</span>
+    <h2 class="section-h">Your data, in full</h2>
+    <p class="deck">Every column and every row, nothing truncated. Scroll in both directions; the
+      header row and the first column stay put.</p>
+  </div>
+
+  <div class="panel flush">
+    <div class="panel-head">
+      <div><h3>Table</h3><p class="sub" id="table-note"></p></div>
+      <label class="switch"><input type="checkbox" id="wrap-cells"><span>wrap long values</span></label>
+    </div>
+    <div class="table-viewport" id="full-table"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>Completeness by column</h3>
+        <p class="sub">Every column named, with how much of it is actually filled. A column that is
+          mostly empty is worth a second look: values that exist for only one outcome are a common
+          shape for a leak.</p></div>
+      <span class="seg" id="fill-sort">
+        <button type="button" data-sort="table" class="on">table order</button>
+        <button type="button" data-sort="empty">emptiest first</button>
+      </span>
+    </div>
+    <div class="fill-list" id="fill-list"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>Set the job</h3>
+        <p class="sub">Two facts about your problem that nothing in the file can supply: what you
+          are predicting, and the moment you would be predicting it.</p></div>
+    </div>
+    <div class="job-grid">
+      <div class="field">
+        <label class="f-label" for="target">Target column</label>
+        <div class="suggest-row hidden" id="target-suggest"></div>
+        <select id="target" required></select>
+        <span class="help">The column you are trying to predict. Everything else is a feature, and
+          every feature is judged against it.</span>
+        <div class="target-preview hidden" id="target-preview"></div>
+      </div>
+      <div class="field">
+        <label class="f-label" for="prediction-point">Prediction point</label>
+        <textarea id="prediction-point" rows="3" required
+          placeholder="at admission, before any complication is observed"></textarea>
+        <div class="examples" id="examples">
+          <span class="note">start from</span>
+          <button type="button" data-x="at admission, before any treatment, complication or discharge outcome is recorded">hospital admission</button>
+          <button type="button" data-x="at the moment the loan is approved, before any repayment or collections history exists">loan approval</button>
+          <button type="button" data-x="when the customer signs up, before any usage, billing or support history has happened">customer signup</button>
+          <button type="button" data-x="before the process runs, using only inputs and settings known in advance of the outcome">process start</button>
+        </div>
+        <span class="help">The moment the prediction would be made in real life. Any column whose
+          value is only knowable <em>after</em> this moment is a leak. This is a fact about how your
+          model gets used, not about the data, so nothing can infer it for you.</span>
+        <div class="point-check hidden" id="point-check"></div>
+      </div>
+    </div>
+    <div class="panel-foot">
+      <button type="button" id="to-model" class="primary" disabled>Continue to model</button>
+      <span class="note" id="job-note"></span>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ 3 · MODEL ══════════ -->
+<section class="tab" id="tab-model">
+  <div class="tab-head">
+    <span class="eyebrow">Stage 3</span>
+    <h2 class="section-h">Which model reads your columns</h2>
+    <p class="deck">This choice is not cosmetic, and the models fail in a specific way. Asked about
+      leakage, they read the question as being about <em>timing</em>. In the benchmark behind this
+      tool, across ten models from eight laboratories, recall averaged 97% on columns recorded
+      after the prediction point and 89% on columns that exist because the outcome happened, but
+      only <b>62% on columns that record why a label was assigned</b> &mdash; and eight of the ten
+      scored worse on that third kind than on the second in the very same tables. Every model here
+      is sent a clause written to close that gap. The card says how far it closed, and under which
+      wording, because no wording works uniformly across models.</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><div><h3>Model</h3></div></div>
+    <div class="model-list" id="model-list"></div>
+    <p class="pool-status hidden" id="pool-status"></p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-foot" style="margin-top:0;border-top:0;padding-top:0">
+      <button type="button" id="run-btn" class="primary" disabled>Start detection</button>
+      <span class="note" id="run-note"></span>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ 4 · DETECTION ══════════ -->
+<section class="tab" id="tab-detect">
+  <div class="tab-head">
+    <span class="eyebrow">Stage 4</span>
+    <h2 class="section-h">Detection</h2>
+    <p class="deck">Two screens run against every column. One reads what the names mean. The other
+      measures how strongly each column correlates with the target. They fail in opposite
+      directions, which is what makes their disagreement worth reading.</p>
+  </div>
+
+  <div class="panel">
+    <p class="replay-note hidden" id="replay-note">
+      <b>Replay.</b> These verdicts were produced by a real Kimi K3 run on this table
+      &mdash; three shuffled passes, recorded and saved so the example works without an
+      API key. No model is being called right now. The downstream comparison on the
+      results tab <em>is</em> computed live, by refitting both arms on the real data.
+    </p>
+    <div class="progress"><span class="progress-fill" id="progress-fill"></span></div>
+    <p class="run-state" id="run-state"></p>
+    <p class="run-eta" id="run-eta"></p>
+    <div class="run-stages" id="run-stages"></div>
+    <div id="error-banner" class="banner hidden"></div>
+  </div>
+
+  <div class="panel hidden" id="found-panel">
+    <div class="panel-head">
+      <div><h3>What the screens found</h3><p class="sub" id="found-note"></p></div>
+    </div>
+    <div class="found-grid" id="found-grid"></div>
+    <div class="panel-foot">
+      <button type="button" id="to-review" class="primary">Continue to review</button>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ 5 · REVIEW ══════════ -->
+<section class="tab" id="tab-review">
+  <div class="tab-head">
+    <span class="eyebrow">Stage 5 &middot; human in the loop</span>
+    <h2 class="section-h">Nothing is dropped without you</h2>
+    <p class="deck">The screen has found columns whose <em>meaning</em> encodes the outcome &mdash;
+      the kind a correlation test is blind to by construction. That is the work it saves you: you no
+      longer have to read a data dictionary line by line looking for them. What it does not do is
+      decide. A column can be flagged and still be one you need, and only you know your data well
+      enough to say so. Accept the set as it stands, or change it.</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>Three ways a column can leak, and one verdict that is yours</h3>
+        <p class="sub">The first three name how the outcome got into the column; they are accounts,
+          not severities. The fourth is not a mechanism at all &mdash; it is what the tool says
+          when it has found something arguable and declines to decide for you.</p></div>
+    </div>
+    <div class="flag-grid">
+      <article data-mechanism="REASON">
+        <b>REASON</b>
+        <p>The column was an input to deciding the label. Whoever assigned the outcome looked at
+          this value to do it, so the model is reading the decision, not predicting it.</p>
+        <span>e.g. the diagnostic code a claim was rejected for, when predicting rejection</span>
+      </article>
+      <article data-mechanism="CONSEQUENCE">
+        <b>CONSEQUENCE</b>
+        <p>The column exists only because the outcome happened. Its presence or absence is the
+          label, whatever the value says. This is the one that survives a correlation check, because
+          on the rows where the outcome did not occur the column is simply empty.</p>
+        <span>e.g. a lifeboat number, when predicting survival</span>
+      </article>
+      <article data-mechanism="TIMING">
+        <b>TIMING</b>
+        <p>The value is recorded after the moment you said the prediction happens. It may be
+          perfectly ordinary data; it just will not exist yet when the model has to run.</p>
+        <span>e.g. total length of stay, when predicting at admission</span>
+      </article>
+      <article data-mechanism="CONTESTED">
+        <b>CONTESTED</b>
+        <p>Flagged, but the documentation says the value was already fixed at the prediction
+          point &mdash; so it could honestly have been obtained. A prior estimate of the target is
+          the standing example: using it is usually a bad idea, and that is a judgement about what
+          your model is <em>for</em>, not about whether the value was available.</p>
+        <span>the tool surfaces these and stops; the call is yours</span>
+      </article>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>Columns</h3><p class="sub" id="review-count"></p></div>
+      <span class="filters" id="filters"></span>
+    </div>
+
+    <details class="reader">
+      <summary>What each column of this table means</summary>
+      <dl>
+        <dt>Verdict</dt><dd>What the model concluded, and by which mechanism.
+          <b>CONSEQUENCE</b> the column exists only because the outcome happened &middot;
+          <b>REASON</b> it was used to assign the label &middot;
+          <b>TIMING</b> it is recorded after the prediction point &middot;
+          <b>CONTESTED</b> flagged, but documented as fixed at the prediction point, so the
+          decision is handed to you rather than made for you.</dd>
+        <dt>Orders</dt><dd>The columns are read three times in three different orders, because
+          order alone changes what a model flags. Each filled dot is one order that called it a
+          leak; the majority settles it.</dd>
+        <dt>|r|</dt><dd>Correlation with the target, ignoring direction. The statistical screen
+          flags anything above 0.5.</dd>
+        <dt>Agreement</dt><dd>Which screens flagged it. <b>Model only</b> is the interesting case:
+          a real leak whose correlation is far too low for any threshold to catch.
+          <b>Statistics only</b> is usually a strong but legitimate predictor.</dd>
+      </dl>
+    </details>
+
+    <div id="evidence"></div>
+
+    <div class="panel-foot">
+      <button type="button" id="accept-all" class="ghost">Accept every flagged column</button>
+      <button type="button" id="impact-btn" class="primary" disabled>Run the comparison</button>
+      <button type="button" id="skip-impact" class="ghost" disabled>Skip it, take the cleaned CSV</button>
+      <span class="note" id="review-note"></span>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ 6 · RESULTS ══════════ -->
+<section class="tab" id="tab-results">
+  <div class="tab-head">
+    <span class="eyebrow">Stage 6</span>
+    <h2 class="section-h">What the leaks were buying</h2>
+    <p class="deck">Each model is fit twice: once with every column, once with your confirmed drops
+      removed. Same folds, same encoding, and the same hyperparameter search on both arms, so the
+      cleaned fit is the best version of itself rather than a strawman. There is no comparison
+      against ground truth here, because your data does not come with one &mdash; the honest number
+      is simply what the model can do without reading the answer.</p>
+    <p class="deck" id="results-protocol"></p>
+  </div>
+
+  <div id="results"></div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>Edit the column set</h3>
+        <p class="sub">The comparison above used the set you confirmed. Change it here &mdash; drop
+          something else, or put a column back &mdash; and measure again. Nothing is locked in;
+          disagreeing with the screen is a legitimate result, not a mistake.</p></div>
+      <span class="seg" id="editor-preset">
+        <button type="button" data-preset="flagged">as flagged</button>
+        <button type="button" data-preset="none">keep everything</button>
+      </span>
+    </div>
+    <div class="editor" id="editor"></div>
+    <div class="panel-foot">
+      <button type="button" id="remeasure-btn" class="primary" disabled>Measure again</button>
+      <span class="note" id="editor-note"></span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>Dataset</h3><p class="sub" id="csv-note"></p></div>
+      <span class="seg" id="csv-toggle">
+        <button type="button" data-view="before" class="on">as uploaded</button>
+        <button type="button" data-view="after">cleaned</button>
+      </span>
+    </div>
+    <div class="table-viewport short" id="result-table"></div>
+    <div class="panel-foot">
+      <button type="button" id="download-csv" class="primary">Download the cleaned CSV</button>
+      <a id="report-link" class="ghost-link" download>Audit report (JSON)</a>
+      <span class="note" id="download-note"></span>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════ SETTINGS ══════════ -->
+<section class="tab" id="tab-settings">
+  <div class="tab-head">
+    <span class="eyebrow">Settings</span>
+    <h2 class="section-h">Credentials</h2>
+    <p class="deck">Leave this empty and the audit runs on a small shared pool, which is
+      there so the tool can be tried without an account. Supply a key and every audit uses
+      it instead, with no daily cap and nothing shared.</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><div><h3>Shared pool</h3></div></div>
+    <p class="pool-status" id="pool-status">Checking…</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>Your own API key</h3>
+        <p class="sub">One field, any provider. Paste whatever you have and Crucible
+          works out who issued it and which models it unlocks. Its quota is yours rather
+          than shared with everyone else on this page.</p></div>
+    </div>
+    <label class="field">
+      <span class="f-label">API key</span>
+      <input type="password" id="api-key" autocomplete="off" spellcheck="false"
+        placeholder="leave empty to use the shared Gemini pool">
+      <span class="help">Google AI Studio, OpenAI, Anthropic or Featherless. Recognized
+        from the key&rsquo;s own prefix, so nothing is sent anywhere to check it and no
+        request is spent.</span>
+    </label>
+    <p class="note" id="key-detect"></p>
+    <dl class="key-table">
+      <dt>Google AI Studio</dt><dd>Gemini 3.7 Flash and 3.5 Flash. Free to create. The
+        only provider with a shared pool, so this is the one you can skip.</dd>
+      <dt>Anthropic</dt><dd>Claude Opus 5 &mdash; the strongest result in the benchmark,
+        F1 0.929.</dd>
+      <dt>OpenAI</dt><dd>GPT-5.6 Sol &mdash; F1 0.918, and the one model that gave an
+        identical answer under three column orders, so one shuffle is enough.</dd>
+      <dt>Featherless</dt><dd>Kimi K3, an open-weight reasoning model. Minutes per audit
+        rather than seconds.</dd>
+    </dl>
+    <p class="help" style="margin-top:4px">A key is held in memory for the length of one
+      audit. Never written to disk, never returned by any endpoint, never logged &mdash;
+      not even a prefix, which is still a key to anyone who has the rest. A test asserts
+      this. A key is also never sent to a provider that did not issue it: pick a model
+      it cannot run and the audit refuses rather than forwarding your column names to
+      the wrong company.</p>
+    <div class="panel-foot">
+      <span class="note" id="key-note"></span>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<div id="tip" class="tip hidden"></div>
+<!-- Versioned so a redeploy is a different URL. Without this a returning
+     visitor keeps the cached script and sees a half-updated interface. -->
+<script src="app.js?v=0.1.0"></script>
+</body>
+</html>
