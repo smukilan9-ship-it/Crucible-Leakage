@@ -497,6 +497,25 @@ def _make_learner(learner_name: str, config: dict):
 
 
 def _build_folds(features, target_values, groups, n_splits) -> list:
+    # Said here rather than letting the splitter raise. A table too small to
+    # cross-validate is a fact about the table, not a defect, and sklearn's own
+    # message talks about splits and samples rather than about rows and folds.
+    if len(features) < n_splits:
+        raise ImpactError(
+            f"{len(features)} rows is too few to compare on {n_splits} folds. "
+            f"Every fold has to hold out some rows and still leave enough to fit "
+            f"on, so this needs at least {n_splits}.")
+    scarcest = target_values.value_counts().min()
+    if groups is None and scarcest < n_splits:
+        rarest = target_values.value_counts().idxmin()
+        # A numpy scalar reprs as np.int64(1), which is the tool's plumbing
+        # showing through a sentence about the user's data.
+        rarest = rarest.item() if hasattr(rarest, "item") else rarest
+        raise ImpactError(
+            f"the rarest class {rarest!r} appears {int(scarcest)} time"
+            f"{'' if scarcest == 1 else 's'}, which is fewer than the {n_splits} "
+            f"folds, so it cannot appear in every one of them. Either gather more "
+            f"of that class or merge it into another.")
     if groups is not None:
         splitter = GroupKFold(n_splits=min(n_splits, groups.nunique()))
         fold_iterator = splitter.split(features, target_values, groups)

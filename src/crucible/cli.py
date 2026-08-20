@@ -32,6 +32,7 @@ VERDICT_MARK = {"LEAK": "LEAK", "ABSTAIN": "?", "OK": "ok"}
 BUCKET_TEXT = {
     "A": "both screens", "B": "model only", "C": "statistics only", "D": "neither",
 }
+ISSUES = "https://github.com/smukilan9-ship-it/Crucible-Leakage/issues"
 
 
 def _require_column(table: pd.DataFrame, name: str, what: str) -> None:
@@ -52,6 +53,71 @@ def _require_column(table: pd.DataFrame, name: str, what: str) -> None:
         f"file to see them.")
 
 
+def _require_model(model_id: str) -> None:
+    """Reject a model this tool does not offer, before anything is sent anywhere.
+
+    An unknown identifier used to be accepted, given the cautious default number
+    of orders, and then sent to a provider that rejected it, which surfaced as a
+    complaint about the model's answers rather than about the name. A typo in
+    `--model` deserves the same treatment as a typo in `--target`.
+    """
+    known = sorted(entry["id"] for entry in models.CATALOGUE)
+    if model_id in known:
+        return
+    close = difflib.get_close_matches(model_id, known, n=3, cutoff=0.5)
+    hint = f" Did you mean {', '.join(repr(m) for m in close)}?" if close else ""
+    raise IntakeError(
+        f"unknown model {model_id!r}.{hint} Run `crucible models` for the "
+        f"{len(known)} on offer and which of them your keys already cover.")
+
+
+def _require_key(model_id: str) -> None:
+    """Stop before the network when the credential this model needs is absent.
+
+    Without this the audit reads the table, plans its orders, calls a provider
+    it has no credential for, and reports that no column order produced a usable
+    answer. That describes a model which answered badly, not one that was never
+    asked, and it is the first thing anyone installing this package meets. The
+    variable is already known: `crucible models` prints it per entry.
+    """
+    provider = models.provider_for(model_id)
+    variable = KEY_VARIABLES.get(provider)
+    if not variable or os.environ.get(variable, "").strip():
+        return
+    raise IntakeError(
+        f"no key for {provider}, so {model_id} cannot be asked anything. Set "
+        f"{variable} in your environment and run again, or run `crucible models` "
+        f"to see which entries the keys you already have will cover. Keys are "
+        f"read from the environment only, never from an argument.")
+
+
+def _positive_int(text: str) -> int:
+    """An argparse type for counts that are meaningless at zero or below."""
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{text!r} is not a whole number")
+    if value < 1:
+        raise argparse.ArgumentTypeError(
+            f"must be at least 1, not {value}; leave it unset for the count this "
+            f"model's measured order sensitivity justifies")
+    return value
+
+
+def _phrase(text: str) -> str:
+    """An argparse type for the prediction point, which cannot be blank.
+
+    Every verdict is a claim about the triple of column, target and prediction
+    point. An empty third term does not make the audit easier, it makes each
+    answer a claim about nothing.
+    """
+    if not text.strip():
+        raise argparse.ArgumentTypeError(
+            "cannot be empty; say when the prediction happens, as a phrase, for "
+            "example \"at loan approval, before any repayment\"")
+    return text.strip()
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="crucible",
@@ -65,12 +131,15 @@ def main(argv: list[str] | None = None) -> int:
     audit.add_argument("--target", required=True, help="the column being predicted")
     audit.add_argument(
         "--at", "--prediction-point", dest="prediction_point", required=True,
+        type=_phrase,
         help="when the prediction happens in real life; a phrase, not a date. "
              "This is the one input nothing can infer for you.")
-    audit.add_argument("--model", default=models.DEFAULT_MODEL)
+    audit.add_argument("--model", default=models.DEFAULT_MODEL,
+                       help="which model reads the column names; "
+                            "`crucible models` lists them")
     audit.add_argument("--dictionary", help="CSV of column,description — grounds "
                                             "every verdict in your own documentation")
-    audit.add_argument("--shuffles", type=int, default=None,
+    audit.add_argument("--shuffles", type=_positive_int, default=None,
                        help="how many column orders to vote across. Left unset, "
                             "each model gets the count its measured order "
                             "sensitivity justifies; `crucible models` prints it.")
@@ -109,7 +178,7 @@ def main(argv: list[str] | None = None) -> int:
         if arguments.command == "impact":
             return _impact(arguments)
         return _models()
-    except (IntakeError, ImpactError, KeyError) as error:
+    except (IntakeError, ImpactError) as error:
         print(f"crucible: {error}", file=sys.stderr)
         return 2
     except QuotaExhausted as error:
@@ -121,11 +190,29 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         print("\ncrucible: interrupted", file=sys.stderr)
         return 130
+    except Exception as error:      # noqa: BLE001
+        # Anything reaching here is a defect rather than a misuse, so it says so
+        # instead of printing a stack trace at somebody who cannot act on one.
+        # KeyError used to be caught alongside the two above and reported as a
+        # user error with exit 2, which dressed a bug up as somebody's typo.
+        if os.environ.get("CRUCIBLE_TRACEBACK"):
+            raise
+        print(f"crucible: {type(error).__name__}: {error}", file=sys.stderr)
+        print(f"crucible: that is a defect in the tool, not a mistake in the "
+              f"command. Re-run with CRUCIBLE_TRACEBACK=1 for the full trace, "
+              f"and please report it with that trace at {ISSUES}", file=sys.stderr)
+        return 1
 
 
 def _audit(arguments) -> int:
+    # Mistakes in the command before mistakes in the environment, and both
+    # before anything is sent anywhere. Reading the table costs milliseconds, so
+    # a typo in --target is worth surfacing before asking anyone to go and set a
+    # variable; the key is still checked before the first network call.
+    _require_model(arguments.model)
     table = load_table(arguments.table)
     _require_column(table, arguments.target, "the target column")
+    _require_key(arguments.model)
     descriptions = None
     if arguments.dictionary:
         features = [c for c in table.columns if c != arguments.target]
@@ -170,6 +257,9 @@ def _audit(arguments) -> int:
         _print_impact(quantify(table, arguments.target, leaks,
                                baseline_drop_list=baseline or None,
                                on_event=_fit_progress(arguments.quiet)))
+    elif arguments.measure:
+        print("nothing was flagged, so there is nothing to measure the cost of",
+              file=sys.stderr)
 
     if arguments.write_clean:
         if not leaks:
@@ -194,6 +284,19 @@ def _confirm(leaks: list[str], path: str, assume_yes: bool) -> bool:
     return input("[y/N] ").strip().lower() in {"y", "yes"}
 
 
+def _verdict(answer: dict) -> str:
+    """The one word that goes in the verdict column.
+
+    Written out rather than nested as conditional expressions, which read as
+    though the mechanism applied to every verdict and not only to a leak.
+    """
+    if answer.get("contested"):
+        return "CONTESTED"
+    if answer["verdict"] == "LEAK":
+        return answer["mechanism"] or "LEAK"
+    return VERDICT_MARK.get(answer["verdict"], "?")
+
+
 def _print_report(result: dict) -> None:
     semantic, statistical = result["semantic"], result["statistical"]
     width = max((len(c) for c in result["columns"]), default=10)
@@ -207,14 +310,11 @@ def _print_report(result: dict) -> None:
                          key=lambda c: (semantic[c]["verdict"] != "LEAK", c)):
         answer = semantic[column]
         correlation = (statistical.get(column) or {}).get("correlation")
-        verdict = ("CONTESTED" if answer.get("contested")
-                   else answer["mechanism"] or VERDICT_MARK.get(answer["verdict"], "?")
-                   if answer["verdict"] == "LEAK"
-                   else VERDICT_MARK.get(answer["verdict"], "?"))
         votes = f"{answer['leak_votes']}/{answer['shuffles_counted']}"
         r = "  —  " if correlation is None else f"{abs(correlation):.3f}"
-        print(f"{column.ljust(width)}  {verdict:<12} {votes:<6} {r:<7} "
-              f"{BUCKET_TEXT[result['buckets'][column]]}")
+        screen = BUCKET_TEXT.get(result["buckets"].get(column), "—")
+        print(f"{column.ljust(width)}  {_verdict(answer):<12} {votes:<6} {r:<7} "
+              f"{screen}")
 
     for column in sorted(result["columns"]):
         answer = semantic[column]

@@ -12,7 +12,7 @@ pip install -e ".[web]"
 
 ## What it found on NASA's Kepler catalogue
 
-![Seven columns flagged, five of them invisible to correlation](docs/review-table.png)
+![Seven columns flagged, five of them invisible to correlation](https://raw.githubusercontent.com/smukilan9-ship-it/Crucible-Leakage/main/docs/review-table.png)
 
 The four `koi_fpflag_*` columns are flags the vetting team set to record *why*
 they decided an object was not a planet. Their correlations with the answer are
@@ -40,17 +40,17 @@ Or open the browser interface:
 uvicorn web.app:app --port 8000
 ```
 
-![The landing page](docs/app-landing.png)
+![The landing page](https://raw.githubusercontent.com/smukilan9-ship-it/Crucible-Leakage/main/docs/app-landing.png)
 
-![A tree drawing itself while the arms are fitted](docs/app-fit.png)
+![A tree drawing itself while the arms are fitted](https://raw.githubusercontent.com/smukilan9-ship-it/Crucible-Leakage/main/docs/app-fit.png)
 
-![The verdict, and what the leaks were worth](docs/app-results.png)
+![The verdict, and what the leaks were worth](https://raw.githubusercontent.com/smukilan9-ship-it/Crucible-Leakage/main/docs/app-results.png)
 
 ---
 
 ## How it works
 
-![The pipeline](docs/pipeline.png)
+![The pipeline](https://raw.githubusercontent.com/smukilan9-ship-it/Crucible-Leakage/main/docs/pipeline.png)
 
 ---
 
@@ -73,7 +73,7 @@ leak had inflated.
 
 ## The idea is not new
 
-![The definition](docs/kaufman-definition.png)
+![The definition](https://raw.githubusercontent.com/smukilan9-ship-it/Crucible-Leakage/main/docs/kaufman-definition.png)
 
 Kaufman, Rosset, Perlich and Stitelman, *Leakage in Data Mining: Formulation,
 Detection, and Avoidance*. KDD 2011, 556 to 563. Extended in ACM TKDD 6(4),

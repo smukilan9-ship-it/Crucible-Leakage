@@ -10,14 +10,15 @@ change a reported number without anything failing.
 Several tests exist because the bug they describe actually happened.
 """
 
+import argparse
 import pathlib
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from crucible import (evidence, fusion, impact, intake, metrics, models, prompts,
-                      providers, screen, stats)
+from crucible import (cli, evidence, fusion, impact, intake, metrics, models,
+                      prompts, providers, screen, stats)
 from crucible.parsing import parse_verdicts
 from crucible.providers import KeyPool, output_budget
 
@@ -958,3 +959,103 @@ def test_a_column_that_is_entirely_empty_does_not_kill_the_measurement():
     result = impact.quantify(frame, "y", ["leak"], n_splits=2)
     assert set(result["learners"]) == {"random_forest", "gradient_boosting"}, (
         "gradient boosting dropped out, which is what the NaN used to cause")
+
+
+# ── the command line's own refusals ──────────────────────────────────────
+#
+# Each of these describes something the tool used to do to a first-time user.
+# They are cheap to keep and the failures they cover are the kind nobody
+# reports, because a person who meets one concludes the tool is broken and
+# leaves rather than opening an issue.
+
+def test_a_missing_key_is_named_rather_than_blamed_on_the_model(monkeypatch):
+    """Without a credential the audit used to run its planning, call a provider
+    it could not authenticate to, and report that no column order produced a
+    usable answer. That describes a model which answered badly, not one that was
+    never asked, and it was the first thing anyone installing this package met."""
+    for variable in providers.KEY_VARIABLES.values():
+        monkeypatch.delenv(variable, raising=False)
+    with pytest.raises(intake.IntakeError) as raised:
+        cli._require_key(models.DEFAULT_MODEL)
+    message = str(raised.value)
+    assert providers.KEY_VARIABLES["gemini"] in message
+    assert "crucible models" in message
+
+
+def test_a_key_that_is_present_lets_the_audit_through(monkeypatch):
+    monkeypatch.setenv(providers.KEY_VARIABLES["gemini"], "AQ.not-a-real-key")
+    cli._require_key(models.DEFAULT_MODEL)
+
+
+def test_whitespace_is_not_a_key(monkeypatch):
+    monkeypatch.setenv(providers.KEY_VARIABLES["gemini"], "   ")
+    with pytest.raises(intake.IntakeError):
+        cli._require_key(models.DEFAULT_MODEL)
+
+
+def test_an_unknown_model_is_refused_before_the_network_with_a_suggestion():
+    with pytest.raises(intake.IntakeError) as raised:
+        cli._require_model("gemini-9.9-turbo")
+    assert "gemini-3.7-flash" in str(raised.value), "no did-you-mean offered"
+
+
+def test_every_catalogued_model_passes_its_own_check():
+    for entry in models.CATALOGUE:
+        cli._require_model(entry["id"])
+
+
+@pytest.mark.parametrize("bad", ["0", "-3", "two", ""])
+def test_a_shuffle_count_below_one_is_refused(bad):
+    """`--shuffles 0` was falsy, so it fell through to the default and the run
+    quietly did something other than what was asked."""
+    with pytest.raises(argparse.ArgumentTypeError):
+        cli._positive_int(bad)
+
+
+def test_a_usable_shuffle_count_survives():
+    assert cli._positive_int("3") == 3
+
+
+@pytest.mark.parametrize("blank", ["", "   ", "\t\n"])
+def test_an_empty_prediction_point_is_refused(blank):
+    """Every verdict is a claim about the triple of column, target and
+    prediction point. An empty third term makes each answer a claim about
+    nothing, so it is refused rather than sent."""
+    with pytest.raises(argparse.ArgumentTypeError):
+        cli._phrase(blank)
+
+
+def test_a_prediction_point_is_kept_but_trimmed():
+    assert cli._phrase("  at loan approval  ") == "at loan approval"
+
+
+def test_a_table_smaller_than_the_folds_is_a_refusal_not_a_traceback():
+    """sklearn raises about n_splits and n_samples, which reached the user as a
+    stack trace. Trying the tool on a handful of rows first is the most likely
+    thing a careful person does."""
+    frame = pd.DataFrame({"a": [1, 2, 3, 4], "leak": [0, 1, 0, 1], "y": [0, 1, 0, 1]})
+    with pytest.raises(impact.ImpactError) as raised:
+        impact.quantify(frame, "y", ["leak"])
+    assert "4 rows" in str(raised.value)
+
+
+def test_a_class_too_rare_for_the_folds_is_named():
+    frame = pd.DataFrame({
+        "a": list(range(40)),
+        "leak": [0] * 37 + [1, 1, 1],
+        "y": [0] * 37 + [1, 1, 1],
+    })
+    with pytest.raises(impact.ImpactError) as raised:
+        impact.quantify(frame, "y", ["leak"])
+    message = str(raised.value)
+    assert "3 times" in message
+    assert "np.int64" not in message, "a numpy repr reached a sentence about data"
+
+
+def test_the_verdict_column_shows_the_mechanism_only_for_a_leak():
+    assert cli._verdict({"contested": True, "verdict": "LEAK",
+                         "mechanism": "REASON"}) == "CONTESTED"
+    assert cli._verdict({"verdict": "LEAK", "mechanism": "TIMING"}) == "TIMING"
+    assert cli._verdict({"verdict": "LEAK", "mechanism": None}) == "LEAK"
+    assert cli._verdict({"verdict": "OK", "mechanism": "TIMING"}) == "ok"
+    assert cli._verdict({"verdict": "ABSTAIN", "mechanism": None}) == "?"
