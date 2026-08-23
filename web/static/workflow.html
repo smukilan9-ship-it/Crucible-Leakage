@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Crucible — the workflow, node by node</title>
+<style>
+/* Crucible's own design system, lifted from web/static/style.css so these
+   pages and the app read as one thing. Tokens, radii, shadows and the four
+   components that carry the app's look: the sage pill, the white panel, the
+   ink verdict, and the before/after headline tile. */
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+
+:root{
+  --ink:#17201a; --ink-2:#1d2a20;
+  --paper:#f5f2e9; --paper-2:#ece9de; --white:#fffdf7;
+  --muted:#667064; --muted-2:#8b938a;
+  --line:rgba(23,32,25,.13); --line-2:rgba(23,32,25,.08);
+  --lime:#5c9256; --leaf:#3f6f4c; --sage:#b6d5a4; --sage-soft:#e1ead8;
+  --coral:#ee8848; --clay:#c25b32; --blush:#ffd8cd; --amber:#f8c14a;
+  --serif:"Instrument Serif","Iowan Old Style",Georgia,serif;
+  --font:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"DM Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --radius:16px; --radius-lg:26px;
+  --shadow:0 16px 42px rgba(23,32,25,.08);
+  --shadow-lift:0 22px 54px rgba(23,32,25,.13);
+  --ease:cubic-bezier(.32,.72,0,1);
+  --frame:min(1240px,100% - 48px);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--font);
+  font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.frame{width:var(--frame);margin-inline:auto}
+
+h1,h2,h3{font-family:var(--serif);font-weight:400;letter-spacing:-.01em}
+h1{font-size:clamp(2.9rem,6vw,4.6rem);line-height:1.04;max-width:15ch}
+h2{font-size:clamp(2rem,3.4vw,3rem);line-height:1.08}
+h3{font-size:clamp(1.6rem,2.6vw,2.35rem);line-height:1.14}
+.deck{max-width:68ch;margin:14px 0 0;color:#4d574c;font-size:1rem;line-height:1.66}
+.deck em{color:var(--ink);font-style:normal;font-weight:650}
+
+.eyebrow{display:inline-flex;padding:7px 12px;color:var(--leaf);
+  background:var(--sage-soft);border-radius:999px;font:500 .68rem var(--mono);
+  letter-spacing:.09em;text-transform:uppercase}
+.eyebrow.light{color:var(--sage);background:rgba(182,213,164,.14)}
+.eyebrow.warn{color:#8d3a17;background:var(--blush)}
+
+.panel{padding:22px 24px;background:var(--white);border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:var(--shadow)}
+.panel.lift{box-shadow:var(--shadow-lift)}
+
+.verdict{padding:34px 38px;color:#fff;background:var(--ink);
+  border-radius:var(--radius-lg);box-shadow:var(--shadow-lift)}
+.verdict h2,.verdict h3{color:#fff;margin-top:18px}
+.verdict h2 b,.verdict h3 b{font-weight:400;color:var(--sage)}
+.verdict p{margin-top:16px;color:#8e9a8d;font-size:.9rem;line-height:1.66;
+  max-width:74ch}
+
+.pill{display:inline-flex;padding:5px 10px;border-radius:999px;font-size:.64rem;
+  font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+.pill.leak{color:#8d3a17;background:var(--blush)}
+.pill.clean{color:var(--leaf);background:var(--sage-soft)}
+.pill.abstain{color:#8a6a12;background:#fdf0cf}
+
+.headline{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.hl{padding:18px 19px;background:var(--paper);border-radius:var(--radius)}
+.verdict .hl{background:rgba(255,253,247,.06)}
+.hl>span{display:block;color:var(--muted);font-size:.71rem;font-weight:650}
+.verdict .hl>span{color:#8e9a8d}
+.hl-pair{display:flex;align-items:baseline;gap:10px;margin:11px 0 8px}
+.hl-leaked{font-family:var(--serif);font-size:2.05rem;line-height:1;color:var(--clay)}
+.hl-arrow{color:var(--muted-2);font-size:.9rem}
+.hl-honest{font-family:var(--serif);font-size:2.05rem;line-height:1;color:var(--leaf)}
+.hl small{display:block;color:var(--muted);font:.68rem/1.5 var(--mono)}
+.verdict .hl small{color:#8e9a8d}
+
+.num{display:grid;width:28px;height:28px;place-items:center;color:var(--lime);
+  background:var(--sage-soft);border-radius:50%;font:500 .66rem var(--mono)}
+.num.warn{color:var(--clay);background:var(--blush)}
+.num.hold{color:#8a6a12;background:#fdf0cf}
+
+.rail{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);
+  border-radius:18px;overflow:hidden}
+.rail>*{padding:20px;background:var(--white)}
+@media(max-width:820px){.headline{grid-template-columns:1fr 1fr}
+  .rail{grid-template-columns:1fr!important}}
+
+
+:root{
+  --paper:#f5f2e9;--paper2:#ece9de;--white:#fffdf7;
+  --ink:#17201a;--ink2:#1d2a20;--muted:#667064;--muted-2:#8b938a;
+  --line:rgba(23,32,25,.15);--line2:rgba(23,32,25,.07);
+  --lime:#5c9256;--leaf:#3f6f4c;--sage:#b6d5a4;--sage-soft:#e1ead8;
+  --coral:#ee8848;--clay:#c25b32;--blush:#ffd8cd;--amber:#f8c14a;
+  --serif:"Iowan Old Style",Georgia,serif;
+  --sans:-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --mono:"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans)}
+
+header{position:fixed;top:0;left:0;right:0;min-height:84px;padding-block:14px;z-index:30;display:flex;
+  align-items:center;gap:30px;padding:0 30px;background:var(--paper);
+  border-bottom:1px solid var(--line-2)}
+header>div:first-child{min-width:0}
+.kicker{font:600 10.5px/1 var(--sans);letter-spacing:.22em;color:var(--muted-2);
+  text-transform:uppercase;margin-bottom:8px}
+header h1{font:400 1.34rem/1.18 var(--serif);letter-spacing:-.014em;
+  max-width:46ch}
+.legend{margin-left:auto;display:flex;gap:20px;font-size:.78rem;
+  color:var(--muted);flex:0 0 auto}
+.key{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.key i{width:12px;height:12px;border-radius:4px;display:block;border:1.6px solid}
+.k1 i{border-color:var(--clay);background:var(--blush)}
+.k2 i{border-color:var(--line);background:var(--white)}
+.k3 i{border-color:var(--amber);background:#fdf3d8}
+
+#stage{position:absolute;inset:0;cursor:grab;
+  background-image:radial-gradient(circle,rgba(23,32,25,.10) 1.1px,transparent 1.1px);
+  background-size:24px 24px}
+#stage.drag{cursor:grabbing}
+#world{position:absolute;top:0;left:0;transform-origin:0 0}
+svg.wires{position:absolute;top:0;left:0;overflow:visible;pointer-events:none}
+
+.node{position:absolute;width:262px;transform:translate(-50%,0);cursor:pointer;
+  -webkit-user-select:none;user-select:none}
+.card{position:relative;padding:20px 22px;background:var(--white);
+  border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);transition:transform .18s var(--ease),box-shadow .18s}
+.node:hover .card{transform:translateY(-3px);box-shadow:var(--shadow-lift)}
+.node.on .card{border-color:var(--ink);
+  box-shadow:0 0 0 3px rgba(23,32,25,.09),var(--shadow-lift)}
+.crown{display:flex;align-items:center;gap:11px;margin-bottom:13px}
+.dot{display:grid;width:28px;height:28px;place-items:center;flex:0 0 28px;
+  color:var(--lime);background:var(--sage-soft);border-radius:50%;
+  font:500 .66rem var(--mono)}
+.ico{width:28px;height:28px;display:grid;place-items:center;color:var(--leaf);
+  margin-left:auto}
+.ico svg{width:21px;height:21px}
+.tag{font:500 .6rem var(--mono);color:var(--muted-2);letter-spacing:.11em;
+  text-transform:uppercase}
+.ttl{font:600 .92rem/1.34 var(--font);letter-spacing:-.004em;color:var(--ink)}
+.label{margin-top:11px;text-align:center;font:.76rem/1.5 var(--font);
+  color:var(--muted)}
+
+.node.llm .card{border-color:rgba(194,91,50,.5)}
+.node.llm .dot{color:var(--clay);background:var(--blush)}
+.node.llm .ico{color:var(--clay)}
+.node.llm .tag{color:var(--clay)}
+.node.llm .card::after{content:"";position:absolute;inset:-7px;
+  border-radius:22px;border:1px solid var(--coral);opacity:.34;
+  pointer-events:none}
+.node.human .card{border-color:rgba(248,193,74,.62)}
+.node.human .dot{color:#a3781c;background:#fdf3d8}
+.node.human .ico,.node.human .tag{color:#a3781c}
+
+.sub{position:absolute;transform:translate(-50%,0);-webkit-user-select:none;
+  user-select:none}
+.chip{height:62px;border-radius:14px;background:var(--white);
+  border:1px solid var(--line);display:flex;align-items:center;
+  justify-content:center;gap:9px;color:var(--muted);box-shadow:var(--shadow)}
+.chip svg{width:23px;height:23px}
+.chip.vendor{background:var(--white);border-color:rgba(194,91,50,.3)}
+.cap{margin-top:9px;text-align:center;font:.72rem/1.4 var(--font);
+  color:var(--muted-2)}
+.port{position:absolute;top:-20px;left:50%;transform:translateX(-50%);
+  font:500 .58rem/1 var(--mono);color:var(--muted-2);letter-spacing:.13em;
+  text-transform:uppercase;white-space:nowrap}
+
+aside{position:fixed;top:0;right:0;width:456px;height:100%;z-index:40;
+  background:var(--white);border-left:1px solid var(--line);
+  box-shadow:-34px 0 80px -46px rgba(23,32,25,.34);
+  transform:translateX(100%);transition:transform .32s cubic-bezier(.32,.72,0,1);
+  display:flex;flex-direction:column}
+aside.open{transform:none}
+.top{padding:36px 36px 24px;border-bottom:1px solid var(--line2)}
+.pane{padding:26px 36px 44px;overflow-y:auto}
+aside h2{font:400 31px/1.15 var(--serif);letter-spacing:-.016em;margin-top:13px}
+.pill{display:inline-block;font:600 10px/1 var(--mono);letter-spacing:.14em;
+  padding:7px 12px;border-radius:20px}
+aside h3{font:600 10px/1 var(--sans);letter-spacing:.2em;text-transform:uppercase;
+  color:var(--muted-2);margin:28px 0 11px}
+aside p{font:400 15.5px/1.64 var(--sans);color:var(--ink2)}
+.ev{font:400 12.8px/1.62 var(--mono);color:var(--leaf);background:var(--sage-soft);
+  border-radius:11px;padding:14px 16px;margin-top:8px}
+.x{position:absolute;top:28px;right:28px;width:32px;height:32px;border:0;
+  background:var(--paper2);border-radius:50%;cursor:pointer;font-size:17px;
+  color:var(--muted)}
+.x:hover{background:var(--line2)}
+
+.tools{position:fixed;left:30px;bottom:28px;z-index:30;display:flex;gap:8px}
+.tools button{height:40px;min-width:40px;border-radius:11px;
+  border:1px solid var(--line);background:var(--white);cursor:pointer;
+  font-size:15px;color:var(--muted);padding:0 13px;
+  box-shadow:0 8px 20px -14px rgba(23,32,25,.4)}
+.tools button:hover{background:var(--paper2);color:var(--ink)}
+.hint{position:fixed;right:30px;bottom:30px;z-index:20;font-size:12.5px;
+  color:var(--muted-2)}
+@media(max-width:900px){aside{width:100%}.hint{display:none}}
+</style></head><body>
+
+<header>
+  <div><div class="kicker">Reverie Hacks 2026 · ML Prompt Engineering</div>
+    <h1>Two prompts, two different questions, and a person with the final say</h1></div>
+  <div class="legend">
+    <span class="key k1"><i></i>a model call</span>
+    <span class="key k2"><i></i>not a model</span>
+    <span class="key k3"><i></i>a person</span>
+  </div>
+</header>
+
+<div id="stage"><div id="world"><svg class="wires" id="wires"></svg></div></div>
+
+<aside id="panel">
+  <button class="x" onclick="shut()">&times;</button>
+  <div class="top"><span class="pill" id="p-pill"></span><h2 id="p-title"></h2></div>
+  <div class="pane">
+    <h3>What it does</h3><p id="p-what"></p>
+    <h3>Why it is here</h3><p id="p-why"></p>
+    <h3>Measured</h3><div class="ev" id="p-ev"></div>
+  </div>
+</aside>
+
+<div class="tools">
+  <button onclick="zoom(1.18)">+</button><button onclick="zoom(.85)">&minus;</button>
+  <button onclick="fit()">Fit</button>
+</div>
+<div class="hint">drag to pan · scroll to zoom · click any node</div>
+
+<script>
+const NODES = [{"id": "input", "n": 1, "row": 0, "col": 0, "kind": "trigger", "g": "input", "tag": "INPUT", "title": "Table in", "cap": "column names \u00b7 target \u00b7 when you predict", "kids": [], "what": "The three things every verdict is a claim about: the column names, the target, and one plain sentence saying when the prediction is made \u2014 \u201cat loan approval, before any repayment\u201d.", "why": "Leakage is not a property of a column on its own. It is a property of the triple (column, target, prediction point). Remove the third term and the question is not merely harder, it is ill-posed.", "ev": "the prediction point is the only input the tool cannot infer for you", "x": 200, "y": 120, "sy": 336, "glyph": "<path d=\"M13 2 4 14h7l-1 8 9-12h-7l1-8Z\" fill=\"currentColor\" stroke=\"none\"/>"}, {"id": "p1", "n": 2, "row": 0, "col": 1, "kind": "llm", "g": "prompt", "tag": "PROMPT 1", "title": "Screen every column", "cap": "the same question, once per shuffled column order", "kids": [{"port": "Model", "name": "Chat model", "glyph": "", "w": 128, "vendor": true}, {"port": "Orders", "name": "Column order", "glyph": "<path d=\"M6 5v14M6 19l-2.4-2.6M6 19l2.4-2.6\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\"/><path d=\"M12 8h8M12 12h5M12 16h8\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\" opacity=\".8\"/>", "w": 96, "vendor": false}, {"port": "Guard", "name": "Coverage gate", "glyph": "<path d=\"M12 3.2 19.5 6v6.2c0 4.4-3 7-7.5 8.6-4.5-1.6-7.5-4.2-7.5-8.6V6Z\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\"/><path d=\"M9 12.2l2.2 2.2L15.4 10\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\"/>", "w": 96, "vendor": false}], "what": "One prompt over the whole table. Every column comes back AVAILABLE, UNAVAILABLE or ABSTAIN with a one-line reason. The same prompt is then re-issued with the columns in a different order.", "why": "The prompt carries the derivation clause: a column can be unavailable because it records why the outcome was assigned, even when it was recorded first. Naming that second criterion is the whole intervention \u2014 everything else here exists to check it.", "ev": "that one clause lifts mean REASON recall from 61% to 86%, across sixteen models from nine laboratories", "x": 590, "y": 120, "sy": 336, "glyph": "<path d=\"M12 2.5 13.9 8 19.5 9.9 13.9 11.8 12 17.3 10.1 11.8 4.5 9.9 10.1 8Z\" fill=\"currentColor\" stroke=\"none\"/><path d=\"M18 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8Z\" fill=\"currentColor\" stroke=\"none\" opacity=\".55\"/>"}, {"id": "vote", "n": 3, "row": 0, "col": 2, "kind": "plain", "g": "vote", "tag": "NO MODEL", "title": "Vote, and keep the disagreement", "cap": "how much the answer moved between orders", "kids": [], "what": "Majority across the orders \u2014 and the spread between them kept as a number instead of thrown away.", "why": "Shuffling the column order alone moves F1 by as much as 0.380 between two runs of the same prompt. That is a property of the model, not the task: one model answers identically every time, another swings by 0.302. So the number of orders is measured per model \u2014 one when it does not vary, three when it does \u2014 rather than picked in advance.", "ev": "spread between orders, three models:  0.000 \u00b7 0.132 \u00b7 0.302", "x": 980, "y": 120, "sy": 336, "glyph": "<path d=\"M4 19V9m5 10V5m5 14v-7m5 7V12\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\"/><path d=\"M2.6 21.4h18.8\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\" opacity=\".45\"/>"}, {"id": "stats", "n": 4, "row": 0, "col": 3, "kind": "plain", "g": "stats", "tag": "STATISTICS", "title": "Screen it again, without a model", "cap": "correlation \u00b7 AUC \u00b7 missingness", "kids": [{"port": "Signal", "name": "Correlation", "glyph": "<circle cx=\"7.5\" cy=\"16\" r=\"1.4\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"11\" cy=\"12.5\" r=\"1.4\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"14.5\" cy=\"13.5\" r=\"1.4\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"17.5\" cy=\"8.5\" r=\"1.4\" fill=\"currentColor\" stroke=\"none\"/><path d=\"M4.5 19 20 6\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\" opacity=\".55\"/>", "w": 96, "vendor": false}, {"port": "Signal", "name": "Univariate AUC", "glyph": "<path d=\"M4 20C9 20 12 16 13.5 11 15 6.5 17 4.5 20 4.2\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\"/><path d=\"M4 20h16M4 20V4\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\" opacity=\".45\"/>", "w": 96, "vendor": false}, {"port": "Signal", "name": "Missingness", "glyph": "<path d=\"M4 6h5M13 6h7M4 11h16M4 16h3M11 16h9M4 21h11\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\" stroke-dasharray=\"0 0\"/>", "w": 96, "vendor": false}], "what": "A second screen that never sees a language model: correlation with the target, univariate AUC, and missingness asymmetry.", "why": "It is here because it is worse, and worse in the opposite direction. On Titanic it misses both real leaks and fires on sex, a perfectly good feature. Two screens that fail differently make their disagreement the useful signal.", "ev": "F1 0.905 for the prompt against 0.630 for this screen, with its threshold swept on the answers in hindsight", "x": 1370, "y": 120, "sy": 336, "glyph": "<circle cx=\"7\" cy=\"15\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"11\" cy=\"11\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"12\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"18\" cy=\"7\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><path d=\"M4 18.5 20 5.5\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\" opacity=\".5\" stroke-dasharray=\"3 3\"/>"}, {"id": "triage", "n": 5, "row": 0, "col": 4, "kind": "plain", "g": "triage", "tag": "TRIAGE", "title": "Sort into four buckets", "cap": "both \u00b7 prompt only \u00b7 statistics only \u00b7 neither", "kids": [], "what": "Every column lands in one of four cells by which screens flagged it. The two cells where the screens disagree are read first.", "why": "Nobody reviews 306 columns. Triage hands over a short ordered list instead, ordered by disagreement rather than by confidence, because confidence is the thing a single call cannot report honestly.", "ev": "48 of 306 columns \u2014 16% \u2014 and that 16% holds every documented leak, 40 of 40", "x": 1760, "y": 120, "sy": 336, "glyph": "<rect x=\"3.6\" y=\"3.6\" width=\"16.8\" height=\"16.8\" rx=\"2.6\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\"/><path d=\"M12 3.6v16.8M3.6 12h16.8\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\"/><rect x=\"5.4\" y=\"5.4\" width=\"5\" height=\"5\" rx=\"1\" fill=\"currentColor\" stroke=\"none\" opacity=\".55\"/>"}, {"id": "p2", "n": 6, "row": 1, "col": 0, "kind": "llm", "g": "prompt", "tag": "PROMPT 2", "title": "Ask a different question", "cap": "of the flagged columns only", "kids": [{"port": "Model", "name": "Chat model", "glyph": "", "w": 128, "vendor": true}, {"port": "Source", "name": "The documentation", "glyph": "<path d=\"M4 4.5h6.4A2.6 2.6 0 0 1 13 7.1V20a2.2 2.2 0 0 0-2.2-2.2H4Z\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\"/><path d=\"M20 4.5h-6.4A2.6 2.6 0 0 0 11 7.1V20a2.2 2.2 0 0 1 2.2-2.2H20Z\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\"/>", "w": 112, "vendor": false}], "what": "A second, differently shaped prompt, put only to the columns the first one flagged: does the dataset's own documentation fix this value at or before the prediction point?", "why": "This is the answer to \u201cwhy not one prompt?\u201d. A single call that holds both questions resolves its own contradiction internally and reports one confident answer. Two prompts asking different questions of different sources can disagree out loud \u2014 and the disagreement is published as CONTESTED rather than settled.", "ev": "on the dropout table this fired on \u201cCurricular units 1st sem (enrolled)\u201d \u2014 raised, and deliberately not decided", "x": 200, "y": 640, "sy": 856, "glyph": "<path d=\"M12 2.5 13.9 8 19.5 9.9 13.9 11.8 12 17.3 10.1 11.8 4.5 9.9 10.1 8Z\" fill=\"currentColor\" stroke=\"none\"/><path d=\"M18 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8Z\" fill=\"currentColor\" stroke=\"none\" opacity=\".55\"/>"}, {"id": "docs", "n": 7, "row": 1, "col": 1, "kind": "plain", "g": "docs", "tag": "EVIDENCE", "title": "Attach the sentence, or admit there is none", "cap": "a quote and a locator, tiered", "kids": [{"port": "Evidence", "name": "Quote + locator", "glyph": "<path d=\"M9.5 6.5C6.6 7.6 5 10 5 12.9c0 2.5 1.4 4.1 3.4 4.1 1.8 0 3.1-1.3 3.1-3.1 0-1.7-1.2-3-2.8-3-.3 0-.6 0-.8.1.3-1.5 1.4-2.7 3-3.4Zm9 0C15.6 7.6 14 10 14 12.9c0 2.5 1.4 4.1 3.4 4.1 1.8 0 3.1-1.3 3.1-3.1 0-1.7-1.2-3-2.8-3-.3 0-.6 0-.8.1.3-1.5 1.4-2.7 3-3.4Z\" fill=\"currentColor\" stroke=\"none\"/>", "w": 108, "vendor": false}, {"port": "Evidence", "name": "Directness tier", "glyph": "<rect x=\"4\" y=\"5\" width=\"16\" height=\"3.6\" rx=\"1.2\" fill=\"currentColor\" stroke=\"none\"/><rect x=\"4\" y=\"10.2\" width=\"11\" height=\"3.6\" rx=\"1.2\" fill=\"currentColor\" stroke=\"none\" opacity=\".65\"/><rect x=\"4\" y=\"15.4\" width=\"6\" height=\"3.6\" rx=\"1.2\" fill=\"currentColor\" stroke=\"none\" opacity=\".38\"/>", "w": 104, "vendor": false}], "what": "Each verdict carries the published sentence it rests on and where to find it, tiered by how directly the source says it. Where there is no sentence, the report says so rather than filling the gap.", "why": "A verdict with a published sentence behind it is a finding. One without it is an opinion. Both are reported, in different tiers, and never merged into a single number.", "ev": "four repositories swept for documented leakage: 8,693 + 605 + 14,420 + 6,418 records, 2 admissible", "x": 590, "y": 640, "sy": 856, "glyph": "<path d=\"M6 3h8l4 4v14H6Z\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\"/><path d=\"M14 3v4h4\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\"/><path d=\"M9 12h6M9 15.5h4\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\" opacity=\".7\"/>"}, {"id": "human", "n": 8, "row": 1, "col": 2, "kind": "human", "g": "human", "tag": "A PERSON", "title": "You decide, column by column", "cap": "nothing is dropped without a human saying so", "kids": [], "what": "The short list, each row carrying its verdict, its reason, its correlation and its quote. You confirm or reject each one. The tool never removes a column by itself.", "why": "Analysts agree on the leakage subtype at only \u03ba = 0.316, and on the smallest table tested, dropping one column too many cost more accuracy than the leak had inflated. Automating this step is not a missing feature. It is the failure mode.", "ev": "a contested column is never auto-promoted and never quietly dropped", "x": 980, "y": 640, "sy": 856, "glyph": "<circle cx=\"12\" cy=\"8\" r=\"3.6\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\"/><path d=\"M4.5 20.5a7.5 7.5 0 0 1 15 0\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\"/>"}, {"id": "refit", "n": 9, "row": 1, "col": 3, "kind": "plain", "g": "refit", "tag": "OUTPUT", "title": "Refit, and price what it cost", "cap": "same folds, two learners; only the columns differ", "kids": [{"port": "Arm", "name": "Random forest", "glyph": "<path d=\"M12 3.5 6.5 12h11Z\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\"/><path d=\"M12 8.5 5 19h14Z\" fill=\"currentColor\" stroke=\"none\" opacity=\".8\"/><path d=\"M12 19v2.2\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\"/>", "w": 104, "vendor": false}, {"port": "Arm", "name": "Gradient boosting", "glyph": "<rect x=\"4.5\" y=\"15\" width=\"3.6\" height=\"6\" rx=\"1\" fill=\"currentColor\" stroke=\"none\" opacity=\".4\"/><rect x=\"10.2\" y=\"10\" width=\"3.6\" height=\"11\" rx=\"1\" fill=\"currentColor\" stroke=\"none\" opacity=\".7\"/><rect x=\"15.9\" y=\"4.5\" width=\"3.6\" height=\"16.5\" rx=\"1\" fill=\"currentColor\" stroke=\"none\"/>", "w": 112, "vendor": false}, {"port": "Arm", "name": "Correlation arm", "glyph": "<path d=\"M4 15h16\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\" stroke-dasharray=\"3.5 3.5\"/><circle cx=\"7.5\" cy=\"18.5\" r=\"1.5\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"12\" cy=\"19.5\" r=\"1.5\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"16.5\" cy=\"10\" r=\"1.5\" fill=\"currentColor\" stroke=\"none\"/>", "w": 104, "vendor": false}], "what": "The same model fitted with the confirmed columns and without them on identical folds, plus a third arm holding whatever a correlation filter would have left behind.", "why": "Finding a leak is a claim; refitting turns it into a number the reader can check. The third arm answers the question every technical reader is already forming: why not just check correlations?", "ev": "Titanic: 0.972 \u2192 0.797, and the correlation arm scored 0.974 \u2014 higher than the leaking model it was meant to fix", "x": 1370, "y": 640, "sy": 856, "glyph": "<path d=\"M20 12a8 8 0 1 1-2.6-5.9\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\"/><path d=\"M20 4.5V9h-4.5\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.7\" stroke=\"currentColor\"/>"}], VENDOR = `<rect x="0.0" y="0" width="36.0" height="36.0" rx="9" fill="#d97757"/><g transform="translate(9.0,9.0) scale(0.7500)"><path d="M17.3041 3.541h-3.6718l6.696 16.918H24Zm-10.6082 0L0 20.459h3.7442l1.3693-3.5527h7.0052l1.3693 3.5528h3.7442L10.5363 3.5409Zm-.3712 10.2232 2.2914-5.9456 2.2914 5.9456Z" fill="#ffffff"/></g><rect x="41.0" y="0" width="36.0" height="36.0" rx="9" fill="#1a1a1a"/><g transform="translate(50.0,9.0) scale(0.7500)"><path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z" fill="#ffffff"/></g><rect x="82.0" y="0" width="36.0" height="36.0" rx="9" fill="#4a63d8"/><g transform="translate(91.0,9.0) scale(0.7500)"><path d="M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81" fill="#ffffff"/></g>`;
+const world = document.getElementById('world'), wires = document.getElementById('wires');
+const HALF = 125, CARD = 98, SUBH = 64;
+let paths = [];
+
+NODES.forEach((n, i) => {
+  const el = document.createElement('div');
+  el.className = 'node ' + n.kind;
+  el.style.left = n.x + 'px'; el.style.top = n.y + 'px';
+  el.innerHTML = `<div class="card">
+      <div class="crown"><span class="dot">${n.n}</span>
+        <span class="tag">${n.tag}</span>
+        <span class="ico"><svg viewBox="0 0 24 24">${n.glyph}</svg></span></div>
+      <div class="ttl">${n.title}</div></div>
+    <div class="label">${n.cap}</div>`;
+  el.dataset.i = i;
+  world.appendChild(el);
+
+  const nx = NODES[i + 1];
+  if (nx && nx.row === n.row) {
+    const a = n.x + HALF, b = nx.x - HALF, y = n.y + CARD / 2;
+    paths.push(`<path d="M${a} ${y}C${a + 46} ${y} ${b - 46} ${y} ${b} ${y}"
+      stroke="#3f6f4c" stroke-width="2" fill="none" opacity=".52"/>
+      <path d="M${b - 9} ${y - 5.5}L${b} ${y}L${b - 9} ${y + 5.5}" fill="none"
+      stroke="#3f6f4c" stroke-width="2" opacity=".52"/>`);
+  } else if (nx) {
+    /* The wrap. Routed out past the last node, down through the empty band
+       between the two rows, and back to the left margin — the way a wrapped
+       n8n canvas returns, rather than a diagonal across everything. */
+    const y1 = n.y + CARD / 2, y2 = nx.y + CARD / 2, mid = 552;
+    const a = n.x + HALF, b = nx.x - HALF;
+    paths.push(`<path d="M${a} ${y1}C${a + 60} ${y1} ${a + 96} ${y1}
+      ${a + 96} ${y1 + 60}L${a + 96} ${mid - 40}C${a + 96} ${mid}
+      ${a + 56} ${mid} ${a + 10} ${mid}L60 ${mid}C22 ${mid} 22 ${mid + 34}
+      22 ${mid + 62}L22 ${y2 - 56}C22 ${y2 - 12} 40 ${y2} ${b} ${y2}"
+      stroke="#3f6f4c" stroke-width="2" fill="none" opacity=".38"
+      stroke-dasharray="1 0"/>
+      <path d="M${b - 9} ${y2 - 5.5}L${b} ${y2}L${b - 9} ${y2 + 5.5}" fill="none"
+      stroke="#3f6f4c" stroke-width="2" opacity=".38"/>`);
+  }
+
+  const ws = n.kids.map(k => k.w), total = ws.reduce((s, w) => s + w + 34, -34);
+  let cx = n.x - total / 2;
+  n.kids.forEach(k => {
+    const centre = cx + k.w / 2;
+    const s = document.createElement('div');
+    s.className = 'sub'; s.style.left = centre + 'px'; s.style.top = n.sy + 'px';
+    s.style.width = k.w + 'px';
+    const inner = k.vendor
+      ? `<svg viewBox="0 0 118 36" style="width:86px;height:26px">
+           <g transform="scale(1)">${VENDOR}</g></svg>`
+      : `<svg viewBox="0 0 24 24">${k.glyph}</svg>`;
+    s.innerHTML = `<div class="port">${k.port}</div>
+      <div class="chip${k.vendor ? ' vendor' : ''}">${inner}</div>
+      <div class="cap">${k.name}</div>`;
+    world.appendChild(s);
+    paths.push(`<path d="M${n.x} ${n.y + CARD}C${n.x} ${n.y + CARD + 96}
+      ${centre} ${n.sy - 110} ${centre} ${n.sy - 9}" stroke="#8b938a"
+      stroke-width="1.4" fill="none" stroke-dasharray="5 5" opacity=".6"/>`);
+    cx += k.w + 34;
+  });
+});
+wires.innerHTML = paths.join('');
+wires.setAttribute('width', 2100); wires.setAttribute('height', 1100);
+
+const SPAN_W = 2020, SPAN_H = 1010;
+let sx = 40, sy = 96, sc = 1;
+const apply = () => world.style.transform = `translate(${sx}px,${sy}px) scale(${sc})`;
+function zoom(f, ox, oy) {
+  ox = ox ?? innerWidth / 2; oy = oy ?? innerHeight / 2;
+  const nx = Math.min(2.4, Math.max(.22, sc * f));
+  sx = ox - (ox - sx) * (nx / sc); sy = oy - (oy - sy) * (nx / sc);
+  sc = nx; apply();
+}
+function fit() {
+  const w = Math.max(innerWidth || document.documentElement.clientWidth || 1440, 640);
+  const h = Math.max(innerHeight || document.documentElement.clientHeight || 900, 520);
+  const room = Math.max(w - (w > 1000 ? 92 : 40), 480);
+  sc = Math.max(.22, Math.min(room / SPAN_W, (h - 210) / SPAN_H, 1.05));
+  sx = (w - SPAN_W * sc) / 2 - 60 * sc;
+  sy = 122 + Math.max(0, (h - 168 - SPAN_H * sc) / 2);
+  apply();
+}
+addEventListener('resize', fit);
+
+/* A click that moved is a pan, not a selection. Without the threshold the
+   first version opened nothing, because every press was also a tiny drag. */
+const stage = document.getElementById('stage');
+let press = null;
+stage.addEventListener('pointerdown', e => {
+  press = {x: e.clientX, y: e.clientY, sx, sy, moved: false,
+           node: e.target.closest('.node')};
+  if (!press.node) stage.classList.add('drag');
+});
+addEventListener('pointermove', e => {
+  if (!press) return;
+  const dx = e.clientX - press.x, dy = e.clientY - press.y;
+  if (Math.hypot(dx, dy) > 4) press.moved = true;
+  if (press.node) return;
+  sx = press.sx + dx; sy = press.sy + dy; apply();
+});
+addEventListener('pointerup', () => {
+  if (press && press.node && !press.moved) open(+press.node.dataset.i, press.node);
+  press = null; stage.classList.remove('drag');
+});
+stage.addEventListener('wheel', e => {
+  e.preventDefault(); zoom(e.deltaY < 0 ? 1.1 : .91, e.clientX, e.clientY);
+}, {passive: false});
+
+const panel = document.getElementById('panel');
+const TINT = {llm: ['#ffd8cd', '#c25b32'], human: ['#fdf3d8', '#a3781c'],
+              trigger: ['#e1ead8', '#3f6f4c'], plain: ['#ece9de', '#667064']};
+function open(i, el) {
+  const n = NODES[i];
+  document.querySelectorAll('.node.on').forEach(o => o.classList.remove('on'));
+  el.classList.add('on');
+  const [bg, fg] = TINT[n.kind], pill = document.getElementById('p-pill');
+  pill.textContent = n.tag; pill.style.background = bg; pill.style.color = fg;
+  document.getElementById('p-title').textContent = n.title;
+  document.getElementById('p-what').textContent = n.what;
+  document.getElementById('p-why').textContent = n.why;
+  document.getElementById('p-ev').textContent = n.ev;
+  panel.classList.add('open');
+}
+function shut() {
+  panel.classList.remove('open');
+  document.querySelectorAll('.node.on').forEach(o => o.classList.remove('on'));
+}
+addEventListener('keydown', e => e.key === 'Escape' && shut());
+fit(); addEventListener('load', fit);
+</script></body></html>
