@@ -26,6 +26,7 @@ import re
 
 import numpy as np
 import pandas as pd
+from joblib import Parallel, delayed
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.model_selection import GroupKFold, StratifiedKFold
 
@@ -51,6 +52,21 @@ SEARCH_GRIDS = {
         {"n_estimators": 100, "learning_rate": 0.1, "max_depth": 5},
     ],
 }
+
+# The grid is here so nobody can say the cleaned arm was handicapped: each arm
+# is given the same three configurations and keeps its own best. That matters
+# for a result and costs three times the fits, which is the wrong trade in
+# front of an audience.
+#
+# CRUCIBLE_FAST=1 gives every arm the first configuration and nothing else.
+# What it does NOT touch is the part the comparison rests on: identical folds,
+# identical preprocessing, and a decision threshold still chosen inside the
+# training half of each fold. Both arms are still treated the same way, so the
+# difference between them is still only which columns are present. The report
+# says when this was on.
+FAST = os.environ.get("CRUCIBLE_FAST", "").strip().lower() in {"1", "true", "yes"}
+if FAST:
+    SEARCH_GRIDS = {name: configs[:1] for name, configs in SEARCH_GRIDS.items()}
 
 
 class ImpactError(Exception):
@@ -348,47 +364,75 @@ def _out_of_fold_probabilities(learner_name, config, features, target_values,
     on Titanic the overstatement was +0.0015 on the arm with leaks and +0.0190
     on the cleaned arm, so it shrinks the very gap this tool exists to report.
     """
-    probabilities = np.full((len(target_values), n_classes), 1.0 / n_classes)
-    fold_thresholds = []
+    n_jobs = _fit_jobs(len(folds))
+    # Split the machine between the two levels rather than letting each level
+    # claim all of it: folds across the cores, and whatever is left over spent
+    # inside each fold's threshold search.
+    inner_jobs = max(1, (os.cpu_count() or 1) // n_jobs)
 
-    for fold_number, (train_index, test_index) in enumerate(folds):
-        learner = _make_learner(learner_name, config)
+    def one_fold(fold_number, train_index, test_index):
+        # One core per fold when the folds themselves are running side by side.
+        # Leaving the forest on n_jobs=-1 inside a parallel loop asks for
+        # cores*folds threads and the machine spends its time context
+        # switching. The forest's answer does not depend on how many cores it
+        # used, only on random_state, so this costs nothing but contention.
+        learner = _make_learner(learner_name, config,
+                                n_jobs=1 if n_jobs > 1 else -1)
         learner.fit(features.iloc[train_index], target_values.iloc[train_index])
 
-        # One real tree off the fitted model, on the first fold of each config.
-        # The root split is the interesting part: an arm that still holds a
-        # leaked column reaches for it immediately, and that is visible here
-        # before any score is computed.
+        # Events are collected rather than emitted here. A worker firing
+        # straight into the callback would interleave the progress stream and
+        # the interface would show folds arriving out of order.
+        events = []
         if emit and fold_number == 0:
             estimator = _first_tree(learner)
             if estimator is not None:
                 names = list(features.columns)
-                emit("tree", {**(context or {}), "fold": fold_number,
-                              "trees_in_fit": len(getattr(learner, "estimators_", [])),
-                              "root_census": root_split_census(learner, names),
-                              **tree_sketch(estimator, names)})
+                events.append(("tree", {**(context or {}), "fold": fold_number,
+                                        "trees_in_fit": len(getattr(learner, "estimators_", [])),
+                                        "root_census": root_split_census(learner, names),
+                                        **tree_sketch(estimator, names)}))
 
         fold_probabilities = learner.predict_proba(features.iloc[test_index])
-        # A fold can be missing a rare class entirely, so place each column by
-        # the class the learner actually saw rather than by position.
-        for position, class_index in enumerate(learner.classes_):
-            probabilities[test_index, int(class_index)] = fold_probabilities[:, position]
-
+        chosen = None
         if n_classes == 2:
             chosen = _threshold_from_training(
-                learner_name, config, features, target_values, train_index)
-            if chosen is not None:
-                fold_thresholds.append(chosen)
+                learner_name, config, features, target_values, train_index,
+                n_jobs=inner_jobs)
         if emit:
-            emit("fold", {**(context or {}), "fold": fold_number,
-                          "of": len(folds), "train_rows": int(len(train_index))})
+            events.append(("fold", {**(context or {}), "fold": fold_number,
+                                    "of": len(folds),
+                                    "train_rows": int(len(train_index))}))
+        return (fold_number, test_index, fold_probabilities,
+                list(learner.classes_), chosen, events)
+
+    # Threads rather than processes: the fitting itself spends its time in
+    # compiled code with the GIL released, and a thread can call `emit` and
+    # read the same frame without the table being pickled once per worker.
+    done = Parallel(n_jobs=n_jobs, prefer="threads")(
+        delayed(one_fold)(number, train_index, test_index)
+        for number, (train_index, test_index) in enumerate(folds))
+
+    probabilities = np.full((len(target_values), n_classes), 1.0 / n_classes)
+    fold_thresholds = []
+    for _, test_index, fold_probabilities, classes, chosen, events in sorted(
+            done, key=lambda row: row[0]):
+        # A fold can be missing a rare class entirely, so place each column by
+        # the class the learner actually saw rather than by position.
+        for position, class_index in enumerate(classes):
+            probabilities[test_index, int(class_index)] = fold_probabilities[:, position]
+        if chosen is not None:
+            fold_thresholds.append(chosen)
+        for name, payload in events:
+            emit(name, payload)
 
     threshold = float(np.mean(fold_thresholds)) if fold_thresholds else None
     return probabilities, threshold
 
 
 def _threshold_from_training(learner_name, config, features, target_values,
-                             train_index, inner_splits: int = 3) -> float | None:
+                             train_index, inner_splits: int = 3,
+                             n_jobs: int = 1) -> float | None:
     """Pick a decision threshold using only the training part of one outer fold.
 
     An inner cross-validation produces predictions for training rows from
@@ -402,12 +446,25 @@ def _threshold_from_training(learner_name, config, features, target_values,
 
     scores = np.full(len(inner_target), 0.5)
     splitter = StratifiedKFold(n_splits=inner_splits, shuffle=True, random_state=0)
-    for fit_index, score_index in splitter.split(inner_features, inner_target):
-        learner = _make_learner(learner_name, config)
+
+    def one_split(fit_index, score_index):
+        # n_jobs=1 unconditionally: this runs inside a fold that is already one
+        # of several in flight, and the forest asking for every core here is
+        # how the machine ends up with cores squared threads.
+        learner = _make_learner(learner_name, config, n_jobs=1)
         learner.fit(inner_features.iloc[fit_index], inner_target.iloc[fit_index])
         predicted = learner.predict_proba(inner_features.iloc[score_index])
         positive = list(learner.classes_).index(1) if 1 in learner.classes_ else -1
-        scores[score_index] = predicted[:, positive]
+        return score_index, predicted[:, positive]
+
+    # Three quarters of every two-class run is spent in here: five outer folds
+    # each paying for a three-fold inner cross-validation to choose a
+    # threshold. Splits write to their own rows, so the result does not depend
+    # on the order they land in.
+    for score_index, column in Parallel(n_jobs=n_jobs, prefer="threads")(
+            delayed(one_split)(fit_index, score_index)
+            for fit_index, score_index in splitter.split(inner_features, inner_target)):
+        scores[score_index] = column
 
     _, threshold = metrics._best_f1(inner_target.to_numpy(), scores)
     return threshold
@@ -490,10 +547,31 @@ def _first_tree(learner):
     return first[0] if hasattr(first, "__len__") else first
 
 
-def _make_learner(learner_name: str, config: dict):
+def _make_learner(learner_name: str, config: dict, n_jobs: int = -1):
+    """`n_jobs` is only ever read by the forest. Boosting has no such option:
+    each tree is fitted on the previous one's residuals, so a single boosting
+    fit cannot use a second core however many are free."""
     if learner_name == "random_forest":
-        return RandomForestClassifier(**config, n_jobs=-1, random_state=0)
+        return RandomForestClassifier(**config, n_jobs=n_jobs, random_state=0)
     return GradientBoostingClassifier(**config, random_state=0)
+
+
+# How many folds to fit at once. The folds of one configuration are
+# independent, so this is where the machine's cores actually get used: the
+# forest could already spread one fit across them, but boosting could not, and
+# boosting is half of every run. Fitting five folds side by side gives the
+# boosting half the parallelism the estimator itself refuses to.
+#
+# Nothing here changes a number. Every fold still fits on its own training
+# rows with the same seed and writes to its own held-out rows, so the pooled
+# probabilities are identical whatever order the folds finish in.
+FIT_JOBS = int(os.environ.get("CRUCIBLE_FIT_JOBS", "0"))
+
+
+def _fit_jobs(n_folds: int) -> int:
+    if FIT_JOBS > 0:
+        return max(1, min(FIT_JOBS, n_folds))
+    return max(1, min(n_folds, os.cpu_count() or 1))
 
 
 def _build_folds(features, target_values, groups, n_splits) -> list:
