@@ -56,8 +56,10 @@ CATALOGUE = [
         "criterion": TEMPORAL,          # measured C1 0.834 -> C6 0.901
         "note": "The default, and the only entry that needs no key of your own. "
                 "F1 0.901 on the benchmark, third of ten models tested, and the "
-                "steadiest under reordering at a spread of 0.019, so it is asked "
-                "once rather than three times. Fast enough to audit while you wait.",
+                "steadiest under reordering at a spread of 0.019. Asked three "
+                "times all the same: sent the identical prompt six times it "
+                "still moved on two of thirty-six columns, so one pass is a "
+                "draw rather than an answer.",
         "measured": evidence.MODEL_CELLS["gemini-3.7-flash"].as_dict(),
         "recommended": True,
     },
@@ -144,16 +146,20 @@ def provider_for(model_id: str) -> str:
 def shuffles_for(model_id: str) -> int:
     """How many column orders this model is worth asking.
 
-    Order sensitivity is a property of the model, so the count is too. A model
-    measured steady under reordering gains nothing from a vote and pays three
-    times over for it; a model that swings needs every order it can get.
+    Two measurements have to agree before a model may skip the vote, and no
+    model currently passes both.
 
-    Only `gemini-3.7-flash` currently clears the bar, at a measured spread of
-    0.019. `gemini-3.5-flash` does not, despite being the same family and the
-    same vendor: it produced the widest spread in the study, 0.380 on the
-    held-out set. Treating them as one family would hand the safe number to the
-    unsafe model, which is why this is keyed on the identifier and not the
-    provider.
+    The first is order sensitivity, which is a property of the model rather
+    than the task: `gemini-3.7-flash` spreads 0.019, `gemini-3.5-flash` spreads
+    0.380 on the held-out set despite being the same family and the same
+    vendor. Reading them as one family would hand the safe number to the unsafe
+    model, which is why this keys on the identifier.
+
+    The second is whether the model answers the same prompt the same way twice,
+    and 3.7 Flash does not: six identical calls at temperature zero moved on
+    two of thirty-six columns. Steady when the columns move is a different
+    property from steady, and only the second licenses reporting one call as
+    the answer.
     """
     measured = evidence.ORDER_SPREAD.get(model_id)
     if not (measured and measured["worst"] < evidence.STABLE_ENOUGH_FOR_ONE_ORDER):

@@ -1170,3 +1170,20 @@ def test_agreement_across_passes_is_not_a_split():
     assert "split" not in screen.majority_vote(agreed, ["x"])["x"]
     alone = [{"x": {"verdict": "LEAK", "mechanism": "TIMING", "reason": "r"}}]
     assert "split" not in screen.majority_vote(alone, ["x"])["x"]
+
+
+def test_no_catalogue_note_contradicts_the_shuffle_count():
+    """What the picker tells a visitor has to match what the tool does.
+
+    The note is the only description of this most people read, and it lived a
+    day claiming the default model is "asked once rather than three times"
+    after the policy had changed underneath it. Prose cannot be checked in
+    general; this checks the one claim that has already gone stale once.
+    """
+    for entry in models.CATALOGUE:
+        note = entry["note"].lower()
+        asked_once = "asked once" in note or "once rather than" in note
+        if asked_once:
+            assert models.shuffles_for(entry["id"]) == 1, (
+                f'{entry["id"]} says it is asked once but is asked '
+                f'{models.shuffles_for(entry["id"])} times')
