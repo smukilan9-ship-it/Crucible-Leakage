@@ -2,11 +2,11 @@ services:
   - type: web
     name: crucible
     runtime: python
-    # Starter rather than free: the free instance sleeps after fifteen minutes
-    # and the first visitor after that waits about forty seconds on a blank
-    # page. For a link being handed to people who will open it once, that first
-    # impression is the whole demonstration.
-    plan: starter
+    # Free, which sleeps after fifteen minutes idle; the first visitor after
+    # that waits about forty seconds on a blank page. Something outside this
+    # file has to keep it awake, because for a link handed to people who open
+    # it once, that first impression is the whole demonstration.
+    plan: free
     buildCommand: pip install -e ".[web,vertex]"
     # One worker. Audit jobs live in this process's memory, so a second worker
     # would be answering progress polls for jobs it has never heard of.
