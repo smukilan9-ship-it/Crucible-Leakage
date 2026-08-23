@@ -17,8 +17,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from crucible import (cli, evidence, fusion, impact, intake, metrics, models,
-                      prompts, providers, screen, stats)
+from crucible import (audit, cli, evidence, fusion, impact, intake, metrics,
+                      models, prompts, providers, screen, stats)
 from crucible.parsing import parse_verdicts
 from crucible.providers import KeyPool, output_budget
 
@@ -123,13 +123,53 @@ def test_sample_values_are_never_placed_in_a_prompt():
         assert forbidden not in prompt
 
 
+def _flat(text: str) -> str:
+    """Collapse wrapping so a phrase can be found wherever the line breaks fall.
+
+    Searching the raw string for a contiguous phrase tests the line wrapping,
+    not the wording. That is not academic: this test passed for months against
+    a C6 whose closing guard had been dropped and whose (a)/(b) blocks had been
+    reflowed into prose, because the one phrase it looked for happened to sit
+    on a single line in the damaged copy and spans two in the correct one.
+    """
+    return " ".join(text.split())
+
+
 def test_the_two_criterion_wordings_really_differ():
     temporal = prompts.build_screen_prompt(["a"], "y", "t", None, "temporal")
     information = prompts.build_screen_prompt(["a"], "y", "t", None, "information")
     assert temporal != information
-    assert "EVEN IF the value was recorded BEFORE" in temporal
-    assert "EVEN IF the value was recorded BEFORE" not in information
-    assert "could the target be" in information
+    assert "EVEN IF the value was recorded BEFORE" in _flat(temporal)
+    assert "EVEN IF the value was recorded BEFORE" not in _flat(information)
+    assert "could the target be" in _flat(information)
+
+
+def test_both_criteria_keep_the_predictiveness_guard():
+    """The sentence that stops the model calling a strong correlate a leak.
+
+    It is the prompt half of the definition's second consequence: a column may
+    be almost perfectly predictive and entirely legitimate. Both conditions
+    carry it, byte-identically, in the experiment these wordings come from, so
+    dropping it from one is a silent change to a measured condition rather
+    than an edit to some prose.
+    """
+    guard = ("Being merely predictive is not sufficient for either: a column "
+             "can correlate strongly with the target and still be AVAILABLE.")
+    for criterion in ("temporal", "information"):
+        built = prompts.build_screen_prompt(["a"], "y", "t", None, criterion)
+        assert guard in _flat(built), f"{criterion} lost the predictiveness guard"
+
+
+def test_both_criteria_keep_the_two_reasons_as_a_labelled_block():
+    """(a) and (b) are indented and on their own lines in both conditions.
+
+    Reflowing them into a paragraph is a wording change, and this prompt's own
+    finding is that wording changes move these models in mirror image.
+    """
+    for criterion in ("temporal", "information"):
+        built = prompts.build_screen_prompt(["a"], "y", "t", None, criterion)
+        assert "\n  (a) TIMING" in built, f"{criterion} lost the (a) block"
+        assert "\n  (b) DERIVATION" in built, f"{criterion} lost the (b) block"
 
 
 def test_a_dictionary_puts_descriptions_and_a_citation_rule_in_the_prompt():
@@ -916,15 +956,51 @@ def test_every_order_failing_is_still_a_failure():
             shuffle_count=3, max_reissues=0))
 
 
-def test_the_shuffle_count_follows_the_model_not_the_vendor():
-    """Order sensitivity is a property of the model. Gemini 3.7 Flash is the
-    steadiest in the study at 0.019 and is asked once; Gemini 3.5 Flash produced
-    the widest spread anywhere, 0.380, and is asked three times. Same family,
-    same vendor, opposite answers, which is why this cannot key on the
-    provider."""
-    assert models.shuffles_for("gemini-3.7-flash") == 1
-    assert models.shuffles_for("gemini-3.5-flash") == evidence.DEFAULT_SHUFFLES
+def test_the_shuffle_count_follows_the_model_not_the_vendor(monkeypatch):
+    """Two models from one vendor can earn different counts.
+
+    Asserting the shipped number here made this test a record of one policy
+    decision rather than of the rule: when the exemption tightened, the test
+    failed for a model whose order sensitivity had not changed at all. So it
+    exercises the rule against injected measurements instead, and the shipped
+    numbers are checked by the test below, which also says why they are what
+    they are.
+    """
+    monkeypatch.setitem(evidence.ORDER_SPREAD, "steady-model",
+                        {"worst": 0.001, "seeds": 5, "source": "test"})
+    monkeypatch.setitem(evidence.REPEAT_STABILITY, "steady-model",
+                        {"unstable_columns": 0, "of": 36, "calls": 6,
+                         "dataset": "test", "source": "test"})
+    monkeypatch.setitem(evidence.ORDER_SPREAD, "swinging-model",
+                        {"worst": 0.380, "seeds": 3, "source": "test"})
+    assert models.shuffles_for("steady-model") == 1
+    assert models.shuffles_for("swinging-model") == evidence.DEFAULT_SHUFFLES
     assert models.provider_for("gemini-3.7-flash") == models.provider_for("gemini-3.5-flash")
+
+
+def test_steady_under_reordering_is_not_enough_to_skip_the_vote():
+    """The exemption needs both measurements, and 3.7 Flash only passes one.
+
+    It is the steadiest model in the study under reordering, at 0.019. Asked
+    the identical prompt six times at temperature zero it still moved on two of
+    thirty-six columns, both of them documented leaks. Steady when the columns
+    move is a different property from steady, and only the second one licenses
+    reporting a single call as the answer.
+    """
+    assert evidence.ORDER_SPREAD["gemini-3.7-flash"]["worst"] \
+        < evidence.STABLE_ENOUGH_FOR_ONE_ORDER
+    assert evidence.REPEAT_STABILITY["gemini-3.7-flash"]["unstable_columns"] \
+        > evidence.STABLE_ENOUGH_FOR_ONE_CALL
+    assert models.shuffles_for("gemini-3.7-flash") == evidence.DEFAULT_SHUFFLES
+    why = models.shuffle_rationale("gemini-3.7-flash")
+    assert "identical calls" in why and "0.019" in why
+
+
+def test_a_model_measured_on_neither_axis_still_gets_the_cautious_count(monkeypatch):
+    """An order measurement on its own no longer buys the exemption."""
+    monkeypatch.setitem(evidence.ORDER_SPREAD, "half-measured",
+                        {"worst": 0.001, "seeds": 5, "source": "test"})
+    assert models.shuffles_for("half-measured") == evidence.DEFAULT_SHUFFLES
 
 
 def test_an_unmeasured_model_gets_the_cautious_count():
@@ -1059,3 +1135,38 @@ def test_the_verdict_column_shows_the_mechanism_only_for_a_leak():
     assert cli._verdict({"verdict": "LEAK", "mechanism": None}) == "LEAK"
     assert cli._verdict({"verdict": "OK", "mechanism": "TIMING"}) == "ok"
     assert cli._verdict({"verdict": "ABSTAIN", "mechanism": None}) == "?"
+
+
+def test_a_column_the_passes_disagreed_on_is_held_for_a_person():
+    """Three passes, two calling it a leak and one not, is not a verdict.
+
+    The majority would be LEAK and the tool would drop the column. It is held
+    instead, for the same reason a contested column is: two to one is a tally,
+    not a decision, and the person who owns the table is the one entitled to
+    make it.
+    """
+    passes = [
+        {"x": {"verdict": "LEAK", "mechanism": "TIMING",
+               "reason": "recorded after the outcome"}},
+        {"x": {"verdict": "LEAK", "mechanism": "TIMING",
+               "reason": "only exists once the case closes"}},
+        {"x": {"verdict": "OK", "mechanism": None,
+               "reason": "captured at intake, before anything is decided"}},
+    ]
+    voted = screen.majority_vote(passes, ["x"])["x"]
+    assert voted["verdict"] == "LEAK" and voted["leak_votes"] == 2
+    assert voted["split"] is True
+    assert any("after the outcome" in r for r in voted["reasons_for"])
+    assert any("at intake" in r for r in voted["reasons_against"])
+
+    report = {"semantic": {"x": voted}, "columns": ["x"]}
+    assert audit.flagged_columns(report) == []
+    assert audit.flagged_columns(report, include_contested=True) == ["x"]
+
+
+def test_agreement_across_passes_is_not_a_split():
+    """Unanimity is an answer, and a single pass cannot disagree with itself."""
+    agreed = [{"x": {"verdict": "LEAK", "mechanism": "TIMING", "reason": "r"}}] * 3
+    assert "split" not in screen.majority_vote(agreed, ["x"])["x"]
+    alone = [{"x": {"verdict": "LEAK", "mechanism": "TIMING", "reason": "r"}}]
+    assert "split" not in screen.majority_vote(alone, ["x"])["x"]

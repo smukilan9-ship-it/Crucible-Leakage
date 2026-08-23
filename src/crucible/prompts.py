@@ -15,13 +15,18 @@ this tool exists to avoid.
 
 DERIVATION_CRITERION = """\
 There are two distinct reasons a column can be UNAVAILABLE, and both count:
-(a) TIMING - the value does not exist, or is not yet final, at the prediction
-point. (b) DERIVATION - the value records WHY the target's outcome was
-assigned, or was itself an input used to determine the target. This holds
-EVEN IF the value was recorded BEFORE the prediction point.
+
+  (a) TIMING - the value does not exist, or is not yet final, at the prediction
+      point.
+  (b) DERIVATION - the value records WHY the target's outcome was assigned, or
+      was itself an input used to determine the target. This holds EVEN IF the
+      value was recorded BEFORE the prediction point.
+
 A column can satisfy (b) while being chronologically earlier than the target.
 Judging only by (a) will mark such a column AVAILABLE, which is wrong.
-Being merely predictive is not sufficient for either."""
+
+Being merely predictive is not sufficient for either: a column can correlate
+strongly with the target and still be AVAILABLE."""
 
 # The same criterion stated without any temporal vocabulary inside it, and with
 # a reconstruction test in place of a timing test. Verbatim from the research.
