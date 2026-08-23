@@ -11,6 +11,8 @@ take whatever the user has and route it, instead of asking them to choose a
 vendor from a list before they can begin.
 """
 
+import os
+
 from .anthropic import AnthropicProvider
 from .base import MAX_OUTPUT_TOKENS, Provider, ProviderError, QuotaExhausted, output_budget
 from .featherless import FeatherlessProvider
@@ -18,13 +20,23 @@ from .gemini import FALLBACK_MODEL, GeminiProvider
 from .keypool import KeyPool
 from .openai import OpenAIProvider
 from .openai_compatible import OpenAICompatibleProvider
+from .vertex import VertexProvider
 
 PROVIDERS = {
     "anthropic": AnthropicProvider,
     "featherless": FeatherlessProvider,
     "gemini": GeminiProvider,
     "openai": OpenAIProvider,
+    "vertex": VertexProvider,
 }
+
+# Vertex serves the same Gemini models as the key pool, so it is a transport
+# rather than a separate entry in the catalogue. Setting this sends every
+# `gemini` call through the billed project instead of the shared free-tier
+# keys, which is what a demo anybody else can reach needs: the pool has a
+# daily cap, and the day it runs out every visitor is told no column order
+# produced a usable answer.
+TRANSPORT_VARIABLE = "CRUCIBLE_GEMINI_TRANSPORT"
 
 # Checked in this order, because an Anthropic key also starts with the OpenAI
 # prefix. Matching in the wrong order would send it to the wrong vendor, and
@@ -50,6 +62,9 @@ KEY_VARIABLES = {
     "featherless": "FEATHERLESS_API_KEY",
     "gemini": "CRUCIBLE_GEMINI_KEYS",
     "openai": "OPENAI_API_KEY",
+    # Credentials reach Vertex by several routes; the project is the one
+    # thing that must be named.
+    "vertex": "GOOGLE_CLOUD_PROJECT",
 }
 
 
@@ -71,10 +86,26 @@ def detect_provider(api_key: str) -> str | None:
     return None
 
 
+def effective_provider(name: str) -> str:
+    """Which provider will actually answer for this one.
+
+    A caller that asked for Gemini and a deployment configured for Vertex get
+    the same models down a different pipe. This is a function rather than two
+    lines inside `resolve` because the CLI checks for a credential before it
+    calls anything, and a check that disagreed with the call refused to run an
+    audit the transport was perfectly able to serve.
+    """
+    if name == "gemini" and os.environ.get(
+            TRANSPORT_VARIABLE, "").strip().lower() == "vertex":
+        return "vertex"
+    return name
+
+
 def resolve(name: str, **options) -> Provider:
     """Build a provider by name. Unknown names fail loudly rather than falling
     back to a default, because silently auditing with a model the caller did
     not ask for is worse than not auditing at all."""
+    name = effective_provider(name)
     try:
         factory = PROVIDERS[name]
     except KeyError:
@@ -87,4 +118,5 @@ __all__ = ["Provider", "ProviderError", "QuotaExhausted", "KeyPool",
            "AnthropicProvider", "FeatherlessProvider", "GeminiProvider",
            "OpenAIProvider", "OpenAICompatibleProvider",
            "PROVIDERS", "KEY_PREFIXES", "KEY_VARIABLES", "FALLBACK_MODEL",
-           "detect_provider", "resolve", "output_budget", "MAX_OUTPUT_TOKENS"]
+           "VertexProvider", "TRANSPORT_VARIABLE",
+           "detect_provider", "resolve", "effective_provider", "output_budget", "MAX_OUTPUT_TOKENS"]
