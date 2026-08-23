@@ -120,14 +120,18 @@ async def run_audit(request: AuditRequest, provider: Provider | None = None,
 def flagged_columns(report: dict, include_contested: bool = False) -> list[str]:
     """The columns the audit flagged.
 
-    Contested columns are excluded by default. They are flagged *and*
-    documented as fixed at the prediction point, so admitting them silently
-    would be the tool making exactly the call it exists to hand to a person.
+    Two kinds are excluded by default, for the same reason. A **contested**
+    column is flagged by the screen and documented as fixed at the prediction
+    point: two different questions, two different answers. A **split** column
+    is one the passes could not agree on among themselves. Admitting either
+    silently would be the tool making exactly the call it exists to hand to a
+    person, and a majority of three is not a decision, it is a tally.
     """
     return sorted(
         column for column, answer in report["semantic"].items()
         if answer["verdict"] == "LEAK"
-        and (include_contested or not answer.get("contested"))
+        and (include_contested
+             or not (answer.get("contested") or answer.get("split")))
     )
 
 

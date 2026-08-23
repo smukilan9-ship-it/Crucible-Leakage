@@ -139,6 +139,13 @@ def majority_vote(verdicts_by_shuffle: list[dict], columns: list[str]) -> dict:
             answer.get("mechanism") for answer in answers
             if answer["verdict"] == "LEAK" and answer.get("mechanism")
         ]
+        # A column the passes disagreed about. Reporting only the winning side
+        # would throw away the more useful half: the model argued both ways and
+        # a reader is entitled to see both arguments rather than the score of a
+        # vote they did not watch. Measured on DROPOUT, the same prompt sent six
+        # times moved on two of thirty-six columns, and both were real leaks, so
+        # this is not a rare shape.
+        split = len(answers) > 1 and 0 < leak_votes < len(answers)
         combined[column] = {
             "verdict": verdict,
             "mechanism": max(set(mechanisms), key=mechanisms.count) if mechanisms else None,
@@ -151,6 +158,16 @@ def majority_vote(verdicts_by_shuffle: list[dict], columns: list[str]) -> dict:
             "leak_votes": leak_votes,
             "shuffles_counted": len(answers),
         }
+        if split:
+            combined[column].update({
+                "split": True,
+                "reasons_for": _distinct_reasons(
+                    answer.get("reason") for answer in answers
+                    if answer["verdict"] == "LEAK"),
+                "reasons_against": _distinct_reasons(
+                    answer.get("reason") for answer in answers
+                    if answer["verdict"] != "LEAK"),
+            })
     return combined
 
 

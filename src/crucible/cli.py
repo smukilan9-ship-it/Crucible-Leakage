@@ -26,7 +26,8 @@ from . import __version__, models
 from .audit import AuditRequest, flagged_columns, run_audit
 from .impact import ImpactError, quantify
 from .intake import IntakeError, load_dictionary, load_table
-from .providers import KEY_VARIABLES, ProviderError, QuotaExhausted, resolve
+from .providers import (KEY_VARIABLES, ProviderError, QuotaExhausted,
+                        effective_provider, resolve)
 
 VERDICT_MARK = {"LEAK": "LEAK", "ABSTAIN": "?", "OK": "ok"}
 BUCKET_TEXT = {
@@ -80,7 +81,7 @@ def _require_key(model_id: str) -> None:
     asked, and it is the first thing anyone installing this package meets. The
     variable is already known: `crucible models` prints it per entry.
     """
-    provider = models.provider_for(model_id)
+    provider = effective_provider(models.provider_for(model_id))
     variable = KEY_VARIABLES.get(provider)
     if not variable or os.environ.get(variable, "").strip():
         return
@@ -151,8 +152,9 @@ def main(argv: list[str] | None = None) -> int:
     audit.add_argument("--measure", action="store_true",
                        help="also fit every arm and report what the leaks were worth")
     audit.add_argument("--include-contested", action="store_true",
-                       help="treat contested columns as leaks; off by default, because "
-                            "a contested column is one the tool declines to decide")
+                       help="treat contested and split columns as leaks; off by "
+                            "default, because both are calls the tool declines to "
+                            "make for you")
     audit.add_argument("--quiet", "-q", action="store_true",
                        help="suppress progress on stderr")
 
@@ -292,6 +294,8 @@ def _verdict(answer: dict) -> str:
     """
     if answer.get("contested"):
         return "CONTESTED"
+    if answer.get("split"):
+        return "SPLIT"
     if answer["verdict"] == "LEAK":
         return answer["mechanism"] or "LEAK"
     return VERDICT_MARK.get(answer["verdict"], "?")
@@ -318,20 +322,37 @@ def _print_report(result: dict) -> None:
 
     for column in sorted(result["columns"]):
         answer = semantic[column]
-        if answer["verdict"] != "LEAK":
+        if answer["verdict"] != "LEAK" and not answer.get("split"):
             continue
         print(f"\n{column}")
-        for reason in answer.get("reasons", [])[:3]:
-            print(f"    · {reason}")
+        if answer.get("split"):
+            # Both arguments, attributed. A reader deciding this needs to know
+            # what was said for and against, not that it went two to one.
+            print(f"    ! the passes disagreed: {answer['leak_votes']} of "
+                  f"{answer['shuffles_counted']} called it a leak, and this is "
+                  f"yours to settle")
+            for reason in answer.get("reasons_for", [])[:2]:
+                print(f"      for  · {reason}")
+            for reason in answer.get("reasons_against", [])[:2]:
+                print(f"      against · {reason}")
+        else:
+            for reason in answer.get("reasons", [])[:3]:
+                print(f"    · {reason}")
         if answer.get("contested"):
             print(f"    ! contested: the documentation places this value at or before "
                   f"the prediction point, so the call is yours")
 
     leaks = flagged_columns(result)
     contested = [c for c in result["columns"] if semantic[c].get("contested")]
+    split = [c for c in result["columns"] if semantic[c].get("split")]
+    held = []
+    if contested:
+        held.append(f"{len(contested)} contested")
+    if split:
+        held.append(f"{len(split)} the passes disagreed on")
     print(f"\n{len(leaks)} flagged of {len(result['columns'])} columns"
           f" ({len(leaks) / max(len(result['columns']), 1):.0%} to review)"
-          + (f", {len(contested)} contested and left to you" if contested else ""))
+          + (f", plus {' and '.join(held)}, left to you" if held else ""))
 
 
 ARM_WORD = {"with_leaks": "with-leaks", "honest": "cleaned", "baseline": "correlation"}

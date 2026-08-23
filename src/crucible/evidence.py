@@ -159,6 +159,35 @@ ORDER_SPREAD = {
 STABLE_ENOUGH_FOR_ONE_ORDER = 0.05
 DEFAULT_SHUFFLES = 3
 
+# ── the variance the order study does not cover ──────────────────────────────
+#
+# ORDER_SPREAD answers "how far does the answer move when the columns move?".
+# It does not answer "does the same prompt give the same answer twice?", and
+# those come apart. Measured 2026-08-23 on DROPOUT, 36 columns, the identical
+# prompt sent six times with one column order and temperature 0.0:
+#
+#     LEAK count per call:  11, 12, 10, 11, 10, 11
+#     Curricular units 1st sem (credited):  LEAK 4 / OK 2
+#     Curricular units 1st sem (enrolled):  OK 5 / LEAK 1
+#
+# Two of thirty-six columns disagreed with themselves, and both are documented
+# positives. The model is genuinely the steadiest in the study under reordering
+# at 0.019, and that is a separate fact from this one.
+#
+# The single-order exemption rested on the claim that "a vote would cost three
+# calls to reproduce one answer". This measurement is what falsifies the
+# premise: at k = 1 there is no answer to reproduce, only a draw. So the
+# exemption now requires a model to have been measured on both axes, and no
+# model has yet cleared the second one.
+REPEAT_STABILITY = {
+    "gemini-3.7-flash": {"unstable_columns": 2, "of": 36, "calls": 6,
+                         "dataset": "DROPOUT",
+                         "source": "measured 2026-08-23, Vertex, C6"},
+}
+
+# A model may skip the vote only if repeated identical calls agreed. None do.
+STABLE_ENOUGH_FOR_ONE_CALL = 0
+
 
 # ── what a reviewer is actually asked to do ──────────────────────────────────
 

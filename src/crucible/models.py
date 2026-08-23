@@ -156,9 +156,15 @@ def shuffles_for(model_id: str) -> int:
     provider.
     """
     measured = evidence.ORDER_SPREAD.get(model_id)
-    if measured and measured["worst"] < evidence.STABLE_ENOUGH_FOR_ONE_ORDER:
-        return 1
-    return evidence.DEFAULT_SHUFFLES
+    if not (measured and measured["worst"] < evidence.STABLE_ENOUGH_FOR_ONE_ORDER):
+        return evidence.DEFAULT_SHUFFLES
+    # Steady under reordering is not the same as steady. The exemption also
+    # needs the model to have given the same answer to the same prompt twice,
+    # and that is measured separately.
+    repeats = evidence.REPEAT_STABILITY.get(model_id)
+    if repeats and repeats["unstable_columns"] > evidence.STABLE_ENOUGH_FOR_ONE_CALL:
+        return evidence.DEFAULT_SHUFFLES
+    return 1 if repeats else evidence.DEFAULT_SHUFFLES
 
 
 def shuffle_rationale(model_id: str) -> str:
@@ -167,6 +173,14 @@ def shuffle_rationale(model_id: str) -> str:
     if not measured:
         return (f"{evidence.DEFAULT_SHUFFLES} orders: this model's order sensitivity "
                 f"has not been measured, so it gets the cautious default.")
+    repeats = evidence.REPEAT_STABILITY.get(model_id)
+    if measured["worst"] < evidence.STABLE_ENOUGH_FOR_ONE_ORDER and repeats \
+            and repeats["unstable_columns"] > evidence.STABLE_ENOUGH_FOR_ONE_CALL:
+        return (f"{evidence.DEFAULT_SHUFFLES} orders: steady under reordering at "
+                f"{measured['worst']:.3f}, but {repeats['unstable_columns']} of "
+                f"{repeats['of']} columns answered differently across "
+                f"{repeats['calls']} identical calls on {repeats['dataset']}, so a "
+                f"single pass is a draw rather than an answer.")
     if measured["worst"] < evidence.STABLE_ENOUGH_FOR_ONE_ORDER:
         return (f"1 order: measured spread {measured['worst']:.3f} across "
                 f"{measured['seeds']} seeds, steady enough that a vote would cost "
