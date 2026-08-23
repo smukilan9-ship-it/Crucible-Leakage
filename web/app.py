@@ -11,6 +11,7 @@ never deletes a column on its own authority.
 """
 
 import asyncio
+import datetime as _dt
 import hashlib
 import json
 import os
@@ -110,6 +111,78 @@ async def _emit(job: dict, event: str, data: dict):
     job["events"].append({"event": event, "data": data})
     for listener_queue in job["listeners"]:
         await listener_queue.put({"event": event, "data": data})
+
+
+# ── who came ────────────────────────────────────────────────────────────────
+# Render has no analytics of its own, and a third-party tag would send every
+# visitor to somebody else in exchange for a number. This counts instead: one
+# salted hash per visitor per day, no address stored, no cookie, nothing that
+# survives the day it was taken.
+#
+# The salt is random per process and never written down, so the hashes cannot
+# be walked back to an address even from this file. Set CRUCIBLE_STATS_FILE to
+# a path on a mounted disk to keep the counts across a redeploy.
+_STATS_FILE = os.environ.get("CRUCIBLE_STATS_FILE", "").strip()
+_STATS_SALT = uuid.uuid4().hex
+_STATS = {"days": {}, "audits": 0, "since": _dt.date.today().isoformat()}
+
+
+def _load_stats() -> None:
+    if _STATS_FILE and os.path.exists(_STATS_FILE):
+        try:
+            with open(_STATS_FILE) as handle:
+                stored = json.load(handle)
+            _STATS["days"] = {d: set(v) for d, v in stored.get("days", {}).items()}
+            _STATS["audits"] = stored.get("audits", 0)
+            _STATS["since"] = stored.get("since", _STATS["since"])
+        except (OSError, ValueError):
+            pass                      # a corrupt counter is not worth a 500
+
+
+def _save_stats() -> None:
+    if not _STATS_FILE:
+        return
+    try:
+        with open(_STATS_FILE, "w") as handle:
+            json.dump({"days": {d: sorted(v) for d, v in _STATS["days"].items()},
+                       "audits": _STATS["audits"], "since": _STATS["since"]},
+                      handle)
+    except OSError:
+        pass
+
+
+_load_stats()
+
+
+@app.middleware("http")
+async def count_visitor(request, call_next):
+    if not request.url.path.startswith("/api/"):
+        today = _dt.date.today().isoformat()
+        client = request.client.host if request.client else "?"
+        agent = request.headers.get("user-agent", "")
+        # Truncated to twelve characters: enough to separate people, far too
+        # little to identify one.
+        who = hashlib.sha256(
+            f"{_STATS_SALT}{client}{agent}".encode()).hexdigest()[:12]
+        seen = _STATS["days"].setdefault(today, set())
+        if who not in seen:
+            seen.add(who)
+            _save_stats()
+    return await call_next(request)
+
+
+@app.get("/api/stats")
+async def stats():
+    """Unique visitors per day, and how many audits they actually started.
+
+    The second number is the one that matters. Somebody who opened the page is
+    not a user; somebody who put a table through it is.
+    """
+    days = {d: len(v) for d, v in sorted(_STATS["days"].items())}
+    return {"since": _STATS["since"], "unique_by_day": days,
+            "unique_total": len(set().union(*_STATS["days"].values()))
+                            if _STATS["days"] else 0,
+            "audits_started": _STATS["audits"]}
 
 
 @app.get("/api/health")
@@ -237,6 +310,10 @@ async def start_audit(
     api_key: str = Form(""),
     dictionary: UploadFile | None = File(None),
 ):
+    # A page view is not a user. Somebody who put a table through it is, so
+    # that is the number /api/stats reports next to the visitor count.
+    _STATS["audits"] += 1
+    _save_stats()
     if not prediction_point.strip():
         raise HTTPException(
             422,

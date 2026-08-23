@@ -2,8 +2,12 @@ services:
   - type: web
     name: crucible
     runtime: python
-    plan: free             # spins down after 15 minutes idle; first hit then takes ~40s
-    buildCommand: pip install -e ".[web]"
+    # Starter rather than free: the free instance sleeps after fifteen minutes
+    # and the first visitor after that waits about forty seconds on a blank
+    # page. For a link being handed to people who will open it once, that first
+    # impression is the whole demonstration.
+    plan: starter
+    buildCommand: pip install -e ".[web,vertex]"
     # One worker. Audit jobs live in this process's memory, so a second worker
     # would be answering progress polls for jobs it has never heard of.
     startCommand: uvicorn web.app:app --host 0.0.0.0 --port $PORT --workers 1 --timeout-keep-alive 120
@@ -12,11 +16,27 @@ services:
       - key: PYTHON_VERSION
         value: "3.12.7"
 
-      # Comma-separated Gemini keys for the shared demonstration pool. Set these
-      # in the dashboard, never in the repository. Leave them unset and the
-      # pooled option is hidden: the interface still loads, the replay still
-      # runs and the downstream comparison still works, because only the
-      # semantic screen needs credentials.
+      # Vertex rather than the pooled AI Studio keys. The pool is capped per
+      # day per key, and the day it empties every visitor is told that no
+      # column order produced a usable answer, which reads as a broken tool
+      # rather than an empty allowance. Vertex bills the project and has no
+      # such cliff. Same models, same prompts, same verdicts.
+      #
+      # Needs, set in the dashboard: GOOGLE_CLOUD_PROJECT, and a secret file
+      # holding a service-account key with the Vertex AI User role, with
+      # GOOGLE_APPLICATION_CREDENTIALS pointing at where it is mounted.
+      # Left unset so that deploying this does not switch the transport out
+      # from under a running instance. Set it to `vertex` in the dashboard once
+      # the project and the credentials file are in place, and the next deploy
+      # picks it up; until then the pooled keys are used exactly as before.
+      - key: CRUCIBLE_GEMINI_TRANSPORT
+        sync: false
+      - key: GOOGLE_CLOUD_PROJECT
+        sync: false
+      - key: GOOGLE_APPLICATION_CREDENTIALS
+        sync: false
+
+      # Still read if the transport is switched back to the key pool.
       - key: CRUCIBLE_GEMINI_KEYS
         sync: false
       - key: CRUCIBLE_GEMINI_DAILY_LIMIT
@@ -41,10 +61,21 @@ services:
       - key: CRUCIBLE_SHUFFLES
         value: "3"
 
-      # How many rows the downstream comparison fits. The free plan runs on a
-      # shared CPU, and this stage is ninety fits: at the 5,000 row default a
-      # wide table can take twenty minutes there. Two thousand keeps the
-      # comparison honest and lets a visitor see it finish. The report always
-      # says how many rows were used.
+      # How many rows the downstream comparison fits. This stage is ninety
+      # fits, and on a shared CPU the 5,000 row default can take twenty minutes
+      # on a wide table. Three thousand keeps the comparison honest and lets a
+      # visitor watch it finish. The report always says how many rows were used.
       - key: CRUCIBLE_MAX_ROWS
-        value: "2000"
+        value: "3000"
+
+      # Folds fitted at once. The forest could already spread one fit across
+      # the cores; boosting cannot, and boosting is half of every run, so this
+      # is where a paid instance's cores actually get spent. Left unset it
+      # takes the core count, which is the right answer on a bigger plan too.
+      - key: CRUCIBLE_FIT_JOBS
+        sync: false
+
+      # Where the visitor counter keeps its tally. Unset it and the count lives
+      # in memory and resets on every deploy, which is fine until you care.
+      - key: CRUCIBLE_STATS_FILE
+        sync: false
